@@ -50,3 +50,8 @@ modules.order
 Module.symvers
 Mkfile.old
 dkms.conf
+
+# More files
+*.cyclo
+*.list
+.settings/
