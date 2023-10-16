@@ -21,7 +21,9 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include <stdio.h>
 #include <stdbool.h>
+#include "tcs3472.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -43,6 +45,8 @@
 ADC_HandleTypeDef hadc1;
 DMA_HandleTypeDef hdma_adc1;
 
+I2C_HandleTypeDef hi2c1;
+
 UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
@@ -55,6 +59,7 @@ static void MX_GPIO_Init(void);
 static void MX_DMA_Init(void);
 static void MX_USART2_UART_Init(void);
 static void MX_ADC1_Init(void);
+static void MX_I2C1_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -97,7 +102,9 @@ int main(void)
   MX_DMA_Init();
   MX_USART2_UART_Init();
   MX_ADC1_Init();
+  MX_I2C1_Init();
   /* USER CODE BEGIN 2 */
+  tcs3472_init();
   HAL_GPIO_WritePin(GPIOB, GPIO_PIN_4, GPIO_PIN_SET);
   /* USER CODE END 2 */
 
@@ -108,16 +115,27 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-  HAL_ADC_Start_DMA(&hadc1, adc_val, 5);
+    uint16_t rgbc[TCS_TOTAL_DATA_BYTES];
+    if(!tcs3472_get_colour_data(rgbc)) {
+      char s[] = "Data not ready\r\n";
+      HAL_UART_Transmit(&huart2, s, sizeof(s), HAL_MAX_DELAY);
+    } else {
+      char buf[500] = {0};
+      uint16_t n = snprintf(buf, 500, "%f, %f, %f\r\n", ((float)rgbc[1])/rgbc[0], ((float)rgbc[2])/rgbc[0], ((float)rgbc[3])/rgbc[0]);
+      HAL_UART_Transmit(&huart2, buf, n, HAL_MAX_DELAY);
+    }
+    HAL_Delay(100);
 
-  while (!adc_ready) {
-    HAL_Delay(1);
-  }
-  adc_ready = false;
-  char buf[500] = {0};
-  uint16_t n = snprintf(buf, 500, "%i, %i, %i, %i, %i\r\n", adc_val[0], adc_val[1], adc_val[2], adc_val[3], adc_val[4]);
-  HAL_UART_Transmit(&huart2, buf, n, HAL_MAX_DELAY);
-  HAL_Delay(100);
+    // HAL_ADC_Start_DMA(&hadc1, adc_val, 5);
+
+    // while (!adc_ready) {
+    //   HAL_Delay(1);
+    // }
+    // adc_ready = false;
+    // char buf[500] = {0};
+    // uint16_t n = snprintf(buf, 500, "%i, %i, %i, %i, %i\r\n", adc_val[0], adc_val[1], adc_val[2], adc_val[3], adc_val[4]);
+    // HAL_UART_Transmit(&huart2, buf, n, HAL_MAX_DELAY);
+    // HAL_Delay(100);
   }
   /* USER CODE END 3 */
 }
@@ -253,6 +271,40 @@ static void MX_ADC1_Init(void)
   /* USER CODE BEGIN ADC1_Init 2 */
 
   /* USER CODE END ADC1_Init 2 */
+
+}
+
+/**
+  * @brief I2C1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_I2C1_Init(void)
+{
+
+  /* USER CODE BEGIN I2C1_Init 0 */
+
+  /* USER CODE END I2C1_Init 0 */
+
+  /* USER CODE BEGIN I2C1_Init 1 */
+
+  /* USER CODE END I2C1_Init 1 */
+  hi2c1.Instance = I2C1;
+  hi2c1.Init.ClockSpeed = 100000;
+  hi2c1.Init.DutyCycle = I2C_DUTYCYCLE_2;
+  hi2c1.Init.OwnAddress1 = 0;
+  hi2c1.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
+  hi2c1.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
+  hi2c1.Init.OwnAddress2 = 0;
+  hi2c1.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
+  hi2c1.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
+  if (HAL_I2C_Init(&hi2c1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN I2C1_Init 2 */
+
+  /* USER CODE END I2C1_Init 2 */
 
 }
 
