@@ -26,8 +26,10 @@ void qtr8a_power_off(qtr8a_instance_e instance) {
 }
 
 void qtr8a_change_duty_cycle(qtr8a_instance_e instance, uint8_t dutyCycle) {
-    qtr8a_power_off(instance);
-    qtr8a_power_on(instance, dutyCycle);
+    if (instance == FRONT)
+        __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, dutyCycle);
+    else
+        __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_3, dutyCycle);
 }
 
 bool qtr8a_get_readings(uint16_t *dataArr, uint8_t size, uint32_t timeout) {

@@ -43,5 +43,7 @@
 
 void tcs3472_init(void);
 bool tcs3472_get_colour_data(uint16_t *rgbc);
+bool check_green();
+bool check_blue();
 
 #endif /* TCS_3472_H_ */

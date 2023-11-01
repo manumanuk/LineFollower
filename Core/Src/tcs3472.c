@@ -45,3 +45,25 @@ bool tcs3472_get_colour_data(uint16_t *rgbc) {
   return true;
 }
 
+bool check_green() {
+    uint16_t rgbc[4];
+    if(tcs3472_get_colour_data(rgbc)) {
+        if (((float)rgbc[0])/rgbc[3] < 150 && ((float)rgbc[1])/rgbc[3] > 150 && ((float)rgbc[2])/rgbc[3] < 150) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+bool check_blue() {
+    uint16_t rgbc[4];
+    if(tcs3472_get_colour_data(rgbc)) {
+        if (((float)rgbc[0])/rgbc[3] < 150 && ((float)rgbc[1])/rgbc[3] < 150 && ((float)rgbc[2])/rgbc[3] > 150) {
+            return true;
+        }
+    }
+
+    return false;
+}
+

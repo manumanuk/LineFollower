@@ -25,11 +25,8 @@
 #include <stdbool.h>
 #include "tcs3472.h"
 #include "qtr8a.h"
-
-#define IR_ARRAY_DUTY_CYCLE 25U
-#define FRONT_IR_ARRAY_SENSORS 6U
-#define BACK_IR_ARRAY_SENSORS 8U
-#define IR_ARRAY_ADC_TIMEOUT 50U
+#include "fsm.h"
+#include "control.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -44,7 +41,11 @@
 
 /* Private macro -------------------------------------------------------------*/
 /* USER CODE BEGIN PM */
-
+#define IR_ARRAY_DUTY_CYCLE 25U
+#define FRONT_IR_ARRAY_SENSORS 6U
+#define BACK_IR_ARRAY_SENSORS 8U
+#define IR_ARRAY_ADC_TIMEOUT 50U
+#define COLOUR_COUNT_THRESH 5
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
@@ -54,11 +55,13 @@ DMA_HandleTypeDef hdma_adc1;
 I2C_HandleTypeDef hi2c1;
 
 TIM_HandleTypeDef htim3;
+TIM_HandleTypeDef htim4;
 
 UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
-
+volatile robot_state_e robotState = IDLE;
+volatile bool adcReady = false;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -69,13 +72,14 @@ static void MX_USART2_UART_Init(void);
 static void MX_ADC1_Init(void);
 static void MX_TIM3_Init(void);
 static void MX_I2C1_Init(void);
+static void MX_TIM4_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-volatile bool adcReady = false;
+
 /* USER CODE END 0 */
 
 /**
@@ -111,13 +115,22 @@ int main(void)
   MX_ADC1_Init();
   MX_TIM3_Init();
   MX_I2C1_Init();
+  MX_TIM4_Init();
   /* USER CODE BEGIN 2 */
   // Colour sensor initialization
+  uint8_t blueCount = 0;
+  uint8_t greenCount = 0;
   tcs3472_init();
   
   // Front IR array initialization
   uint16_t frontQtr8aReadings[FRONT_IR_ARRAY_SENSORS];
+  uint16_t backQtr8aReadings[FRONT_IR_ARRAY_SENSORS];
   qtr8a_power_on(FRONT, IR_ARRAY_DUTY_CYCLE);
+  // qtr8a_power_off(BACK, IR_ARRAY_DUTY_CYCLE);
+
+  init_motors();
+  uint8_t lMotorPwm = 0;
+  uint8_t rMotorPwm = 0;
 
   /* USER CODE END 2 */
 
@@ -129,27 +142,52 @@ int main(void)
 
     /* USER CODE BEGIN 3 */
 
-    // Read latest colour sensor data
-    uint16_t rgbc[TCS_TOTAL_DATA_BYTES];
-    if(tcs3472_get_colour_data(rgbc)) {
-      // Print data
-      char buf[500] = {0};
-      uint16_t n = snprintf(buf, 500, "%f, %f, %f\r\n", ((float)rgbc[1])/rgbc[0], ((float)rgbc[2])/rgbc[0], ((float)rgbc[3])/rgbc[0]);
-      HAL_UART_Transmit(&huart2, buf, n, HAL_MAX_DELAY);
+    switch(robotState) {
+      case CALIB:
+        // calibrateSensors();
+        transition_state(&robotState, CALIB_CMPL);
+        break;
+      case IDLE:
+        HAL_Delay(10);
+        break;
+      case LFF:
+        qtr8a_get_readings(frontQtr8aReadings, FRONT_IR_ARRAY_SENSORS, IR_ARRAY_ADC_TIMEOUT);
+        if (ctrl_bang_bang_get_motor_cmd(frontQtr8aReadings, FRONT_IR_ARRAY_SENSORS, &lMotorPwm, &rMotorPwm)) {
+          motor_command(lMotorPwm, rMotorPwm);
+        }
+        
+        if(check_blue()) 
+          blueCount++;
+        else
+          blueCount = 0;
+
+        if (blueCount > COLOUR_COUNT_THRESH)
+          transition_state(&robotState, GREEN);
+        break;
+      case LFR:
+        qtr8a_get_readings(backQtr8aReadings, BACK_IR_ARRAY_SENSORS, IR_ARRAY_ADC_TIMEOUT);
+        if (ctrl_bang_bang_get_motor_cmd(backQtr8aReadings, BACK_IR_ARRAY_SENSORS, &lMotorPwm, &rMotorPwm)) {
+          motor_command(lMotorPwm, rMotorPwm);
+        }
+
+        if(check_green())
+          greenCount++;
+        else
+          greenCount = 0;
+        
+        if (greenCount > COLOUR_COUNT_THRESH)
+          transition_state(&robotState, GREEN);
+        break;
+      case GRPR:
+        // call_grpr_sequence();
+        transition_state(&robotState, GRPR_CMPL);
+        break;
+      case GRPG:
+        // call_grpp_sequence();
+        transition_state(&robotState, GRPG_CMPL);
+        break;
     }
 
-    // Read latest IR array data
-    if (qtr8a_get_readings(frontQtr8aReadings, FRONT_IR_ARRAY_SENSORS, IR_ARRAY_ADC_TIMEOUT)) {
-      // Print data
-      char buf[500] = {0};
-      uint16_t n = snprintf(buf, 500, "%i, %i, %i, %i, %i, %i\r\n", frontQtr8aReadings[0],
-                                                                frontQtr8aReadings[1],
-                                                                frontQtr8aReadings[2],
-                                                                frontQtr8aReadings[3],
-                                                                frontQtr8aReadings[4],
-                                                                frontQtr8aReadings[5]);
-      HAL_UART_Transmit(&huart2, buf, n, HAL_MAX_DELAY);
-    }
   }
   /* USER CODE END 3 */
 }
@@ -387,6 +425,69 @@ static void MX_TIM3_Init(void)
 
   /* USER CODE END TIM3_Init 2 */
   HAL_TIM_MspPostInit(&htim3);
+
+}
+
+/**
+  * @brief TIM4 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM4_Init(void)
+{
+
+  /* USER CODE BEGIN TIM4_Init 0 */
+
+  /* USER CODE END TIM4_Init 0 */
+
+  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+  TIM_OC_InitTypeDef sConfigOC = {0};
+
+  /* USER CODE BEGIN TIM4_Init 1 */
+
+  /* USER CODE END TIM4_Init 1 */
+  htim4.Instance = TIM4;
+  htim4.Init.Prescaler = 42;
+  htim4.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim4.Init.Period = 100;
+  htim4.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim4.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&htim4) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+  if (HAL_TIM_ConfigClockSource(&htim4, &sClockSourceConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_TIM_PWM_Init(&htim4) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim4, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sConfigOC.OCMode = TIM_OCMODE_PWM1;
+  sConfigOC.Pulse = 0;
+  sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
+  sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
+  if (HAL_TIM_PWM_ConfigChannel(&htim4, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_TIM_PWM_ConfigChannel(&htim4, &sConfigOC, TIM_CHANNEL_2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM4_Init 2 */
+
+  /* USER CODE END TIM4_Init 2 */
+  HAL_TIM_MspPostInit(&htim4);
 
 }
 
