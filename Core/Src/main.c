@@ -46,6 +46,9 @@
 #define BACK_IR_ARRAY_SENSORS 8U
 #define IR_ARRAY_ADC_TIMEOUT 50U
 #define COLOUR_COUNT_THRESH 5
+#define SW_PORT GPIOC
+#define SW_PIN GPIO_PIN_13
+#define SWLONG_TIME 2000
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
@@ -60,8 +63,10 @@ TIM_HandleTypeDef htim4;
 UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
-volatile robot_state_e robotState = IDLE;
+volatile static robot_state_e robotState = IDLE;
 volatile bool adcReady = false;
+volatile static uint8_t swPinState = 1;
+volatile static uint32_t swLastOnTime = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -120,15 +125,15 @@ int main(void)
   // Colour sensor initialization
   uint8_t blueCount = 0;
   uint8_t greenCount = 0;
-  tcs3472_init();
+//  tcs3472_init();
   
   // Front IR array initialization
   uint16_t frontQtr8aReadings[FRONT_IR_ARRAY_SENSORS];
   uint16_t backQtr8aReadings[FRONT_IR_ARRAY_SENSORS];
-  qtr8a_power_on(FRONT, IR_ARRAY_DUTY_CYCLE);
+//  qtr8a_power_on(FRONT, IR_ARRAY_DUTY_CYCLE);
   // qtr8a_power_off(BACK, IR_ARRAY_DUTY_CYCLE);
 
-  init_motors();
+//  init_motors();
   uint8_t lMotorPwm = 0;
   uint8_t rMotorPwm = 0;
 
@@ -562,7 +567,7 @@ static void MX_GPIO_Init(void)
 
   /*Configure GPIO pin : B1_Pin */
   GPIO_InitStruct.Pin = B1_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING_FALLING;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(B1_GPIO_Port, &GPIO_InitStruct);
 
@@ -573,6 +578,10 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(LD2_GPIO_Port, &GPIO_InitStruct);
 
+  /* EXTI interrupt init*/
+  HAL_NVIC_SetPriority(EXTI15_10_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);
+
 /* USER CODE BEGIN MX_GPIO_Init_2 */
 /* USER CODE END MX_GPIO_Init_2 */
 }
@@ -581,6 +590,32 @@ static void MX_GPIO_Init(void)
 
 void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc) {
   adcReady = true;
+}
+
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
+  if (GPIO_Pin == SW_PIN) {
+    // Debounce
+    uint8_t i=0;
+    while (i<70)
+      i++;
+
+    // Read new state
+    uint8_t newState = HAL_GPIO_ReadPin(SW_PORT, SW_PIN);
+
+    // If the state has changed after debouncing, transition state or store the ON time
+    if (newState != swPinState) {
+      uint32_t currTime = HAL_GetTick();
+      if (!newState)
+        swLastOnTime = HAL_GetTick();
+      else if (currTime-swLastOnTime > SWLONG_TIME)
+        transition_state(&robotState, SWLONG);
+      else
+        transition_state(&robotState, SW);
+
+      swPinState = newState;
+    }
+      
+  }
 }
 
 /* USER CODE END 4 */
