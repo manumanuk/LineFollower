@@ -108,10 +108,12 @@ int main(void)
   MX_TIM3_Init();
   MX_I2C1_Init();
   /* USER CODE BEGIN 2 */
+  // Colour sensor initialization
   tcs3472_init();
+  
+  // IR array initialization
   HAL_GPIO_WritePin(GPIOB, GPIO_PIN_4, GPIO_PIN_SET);
   MX_TIM3_Init();
-  /* USER CODE BEGIN 2 */
   TIM3->CCR1 = 25;
   HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1);
   /* USER CODE END 2 */
@@ -123,6 +125,8 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+
+    // Read latest colour sensor data
     uint16_t rgbc[TCS_TOTAL_DATA_BYTES];
     if(!tcs3472_get_colour_data(rgbc)) {
       char s[] = "Data not ready\r\n";
@@ -132,10 +136,9 @@ int main(void)
       uint16_t n = snprintf(buf, 500, "%f, %f, %f\r\n", ((float)rgbc[1])/rgbc[0], ((float)rgbc[2])/rgbc[0], ((float)rgbc[3])/rgbc[0]);
       HAL_UART_Transmit(&huart2, buf, n, HAL_MAX_DELAY);
     }
-    HAL_Delay(100);
 
+    // Read latest IR array data
     HAL_ADC_Start_DMA(&hadc1, adc_val, 5);
-
     while (!adc_ready) {
       HAL_Delay(1);
     }
@@ -143,6 +146,8 @@ int main(void)
     char buf[500] = {0};
     uint16_t n = snprintf(buf, 500, "%i, %i, %i, %i, %i\r\n", adc_val[0], adc_val[1], adc_val[2], adc_val[3], adc_val[4]);
     HAL_UART_Transmit(&huart2, buf, n, HAL_MAX_DELAY);
+
+    // Delay
     HAL_Delay(500);
   }
   /* USER CODE END 3 */
