@@ -24,6 +24,12 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include "tcs3472.h"
+#include "qtr8a.h"
+
+#define IR_ARRAY_DUTY_CYCLE 25U
+#define FRONT_IR_ARRAY_SENSORS 6U
+#define BACK_IR_ARRAY_SENSORS 8U
+#define IR_ARRAY_ADC_TIMEOUT 50U
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -69,9 +75,7 @@ static void MX_I2C1_Init(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-// static volatile uint8_t adc_num = 0;
-static volatile uint16_t adc_val[5];
-static volatile bool adc_ready = false;
+volatile bool adcReady = false;
 /* USER CODE END 0 */
 
 /**
@@ -111,11 +115,10 @@ int main(void)
   // Colour sensor initialization
   tcs3472_init();
   
-  // IR array initialization
-  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_4, GPIO_PIN_SET);
-  MX_TIM3_Init();
-  TIM3->CCR1 = 25;
-  HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1);
+  // Front IR array initialization
+  uint16_t frontQtr8aReadings[FRONT_IR_ARRAY_SENSORS];
+  qtr8a_power_on(FRONT, IR_ARRAY_DUTY_CYCLE);
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -128,27 +131,25 @@ int main(void)
 
     // Read latest colour sensor data
     uint16_t rgbc[TCS_TOTAL_DATA_BYTES];
-    if(!tcs3472_get_colour_data(rgbc)) {
-      char s[] = "Data not ready\r\n";
-      HAL_UART_Transmit(&huart2, s, sizeof(s), HAL_MAX_DELAY);
-    } else {
+    if(tcs3472_get_colour_data(rgbc)) {
+      // Print data
       char buf[500] = {0};
       uint16_t n = snprintf(buf, 500, "%f, %f, %f\r\n", ((float)rgbc[1])/rgbc[0], ((float)rgbc[2])/rgbc[0], ((float)rgbc[3])/rgbc[0]);
       HAL_UART_Transmit(&huart2, buf, n, HAL_MAX_DELAY);
     }
 
     // Read latest IR array data
-    HAL_ADC_Start_DMA(&hadc1, adc_val, 5);
-    while (!adc_ready) {
-      HAL_Delay(1);
+    if (qtr8a_get_readings(frontQtr8aReadings, FRONT_IR_ARRAY_SENSORS, IR_ARRAY_ADC_TIMEOUT)) {
+      // Print data
+      char buf[500] = {0};
+      uint16_t n = snprintf(buf, 500, "%i, %i, %i, %i, %i, %i\r\n", frontQtr8aReadings[0],
+                                                                frontQtr8aReadings[1],
+                                                                frontQtr8aReadings[2],
+                                                                frontQtr8aReadings[3],
+                                                                frontQtr8aReadings[4],
+                                                                frontQtr8aReadings[5]);
+      HAL_UART_Transmit(&huart2, buf, n, HAL_MAX_DELAY);
     }
-    adc_ready = false;
-    char buf[500] = {0};
-    uint16_t n = snprintf(buf, 500, "%i, %i, %i, %i, %i\r\n", adc_val[0], adc_val[1], adc_val[2], adc_val[3], adc_val[4]);
-    HAL_UART_Transmit(&huart2, buf, n, HAL_MAX_DELAY);
-
-    // Delay
-    HAL_Delay(500);
   }
   /* USER CODE END 3 */
 }
@@ -478,14 +479,7 @@ static void MX_GPIO_Init(void)
 /* USER CODE BEGIN 4 */
 
 void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc) {
-  // adc_val[adc_num] = HAL_ADC_GetValue(hadc);
-  // if (adc_num == 4) {
-	//   adc_num = 0;
-	//   HAL_ADC_Stop_IT(hadc);
-  // } else {
-	//   ++adc_num;
-  // }
-  adc_ready = true;
+  adcReady = true;
 }
 
 /* USER CODE END 4 */
