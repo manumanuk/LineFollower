@@ -46,7 +46,12 @@ extern "C" {
 
 /* Exported macro ------------------------------------------------------------*/
 /* USER CODE BEGIN EM */
-
+#define FRONT_IR_ARRAY_SENSORS 8U
+#define BACK_IR_ARRAY_SENSORS 8U
+#define MAX_IR_ARRAY_SENSORS 8U
+#define IR_ARRAY_ADC_TIMEOUT 50U
+#define SW_PORT GPIOC
+#define SW_PIN GPIO_PIN_13
 /* USER CODE END EM */
 
 void HAL_TIM_MspPostInit(TIM_HandleTypeDef *htim);

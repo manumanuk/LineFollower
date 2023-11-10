@@ -1,8 +1,12 @@
 #include "qtr8a.h"
+#include "main.h"
 
 extern TIM_HandleTypeDef htim3;
 extern ADC_HandleTypeDef hadc1;
 extern volatile bool adcReady;
+
+uint16_t frontColourCalibratedLevels[2][FRONT_IR_ARRAY_SENSORS];
+uint16_t backColourCalibratedLevels[2][BACK_IR_ARRAY_SENSORS];
 
 void qtr8a_power_on(qtr8a_instance_e instance, uint8_t dutyCycle) {
     if (dutyCycle > 100)
@@ -49,4 +53,13 @@ bool qtr8a_get_readings(uint16_t *dataArr, uint8_t size, uint32_t timeout) {
 
     adcReady = false;
     return true;
+}
+
+void qtr8a_set_levels(qtr8a_instance_e instance, line_colour_e colour, double *calibReadings) {
+    uint16_t *levelsArr = (instance == FRONT) ? frontColourCalibratedLevels[colour] : backColourCalibratedLevels[colour];
+    uint8_t size = (instance == FRONT) ? FRONT_IR_ARRAY_SENSORS : BACK_IR_ARRAY_SENSORS;
+
+    for (int i=0; i<size; i++) {
+        levelsArr[i] = ((uint16_t)(calibReadings[i]));
+    }
 }
