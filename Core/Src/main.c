@@ -41,7 +41,6 @@
 
 /* Private macro -------------------------------------------------------------*/
 /* USER CODE BEGIN PM */
-#define IR_ARRAY_DUTY_CYCLE 100U
 #define COLOUR_COUNT_THRESH 5
 #define SWLONG_TIME 2000
 /* USER CODE END PM */
@@ -131,7 +130,7 @@ int main(void)
   // Front IR array initialization
   uint16_t frontQtr8aReadings[FRONT_IR_ARRAY_SENSORS];
   uint16_t backQtr8aReadings[FRONT_IR_ARRAY_SENSORS];
-  qtr8a_power_on(FRONT, IR_ARRAY_DUTY_CYCLE);
+  qtr8a_power_on(FRONT);
   // qtr8a_power_off(BACK, IR_ARRAY_DUTY_CYCLE);
 
   init_motors();
@@ -158,7 +157,7 @@ int main(void)
         break;
       case LFF:
         qtr8a_get_readings(frontQtr8aReadings, FRONT_IR_ARRAY_SENSORS, IR_ARRAY_ADC_TIMEOUT);
-        ctrl_bang_bang_get_motor_cmd(frontQtr8aReadings, FRONT_IR_ARRAY_SENSORS, &lMotorPwm, &rMotorPwm);
+        ctrl_bang_bang_get_motor_cmd(frontQtr8aReadings, FRONT_IR_ARRAY_SENSORS, &lMotorPwm, &rMotorPwm, BANG_BANG_SPEED);
         motor_command(lMotorPwm, rMotorPwm);
 
         if(check_blue())
@@ -171,7 +170,7 @@ int main(void)
         break;
       case LFR:
         qtr8a_get_readings(backQtr8aReadings, BACK_IR_ARRAY_SENSORS, IR_ARRAY_ADC_TIMEOUT);
-        ctrl_bang_bang_get_motor_cmd(backQtr8aReadings, BACK_IR_ARRAY_SENSORS, &lMotorPwm, &rMotorPwm);
+        ctrl_bang_bang_get_motor_cmd(backQtr8aReadings, BACK_IR_ARRAY_SENSORS, &lMotorPwm, &rMotorPwm, BANG_BANG_SPEED);
         motor_command(lMotorPwm, rMotorPwm);
 
         if(check_green())
@@ -183,11 +182,11 @@ int main(void)
           transition_state(&robotState, GREEN);
         break;
       case GRPR:
-        // call_grpr_sequence();
+        call_grpr_sequence();
         transition_state(&robotState, GRPR_CMPL);
         break;
       case GRPG:
-        // call_grpp_sequence();
+        call_grpg_sequence();
         transition_state(&robotState, GRPG_CMPL);
         break;
     }
@@ -498,7 +497,7 @@ static void MX_TIM2_Init(void)
 
   /* USER CODE END TIM2_Init 1 */
   htim2.Instance = TIM2;
-  htim2.Init.Prescaler = 42;
+  htim2.Init.Prescaler = 16800;
   htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
   htim2.Init.Period = 100;
   htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;

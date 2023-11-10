@@ -10,6 +10,9 @@ bool transition_state(volatile robot_state_e *state, robot_event_e event) {
         case IDLE: {
             switch(event) {
                 case SW:
+                    motor_command(0, 0);
+                    motor_switch_directions(FORWARD);
+                    qtr8a_power_on(FRONT);
                     *state = LFF;
                     return true;
                 case SWLONG:
@@ -31,9 +34,13 @@ bool transition_state(volatile robot_state_e *state, robot_event_e event) {
         case LFF: {
             switch(event) {
                 case SW:
+                    motor_command(0, 0);
+                    qtr8a_power_off(FRONT);
                     *state = IDLE;
                     return true;
                 case BLUE_EVT:
+                    motor_command(0, 0);
+                    qtr8a_power_off(FRONT);
                     *state = GRPG;
                 default:
                     return false;
@@ -42,9 +49,13 @@ bool transition_state(volatile robot_state_e *state, robot_event_e event) {
         case LFR: {
             switch(event) {
                 case SW:
+                    motor_command(0, 0);
+                    qtr8a_power_off(BACK);
                     *state = IDLE;
                     return true;
                 case GREEN_EVT:
+                    motor_command(0, 0);
+                    qtr8a_power_off(BACK);
                     *state = GRPR;
                     return true;
                 default:
@@ -55,8 +66,13 @@ bool transition_state(volatile robot_state_e *state, robot_event_e event) {
             switch(event) {
                 case SW:
                     *state = IDLE;
+                    motor_command(0, 0);
+                    halt_gripper();
                     return true;
                 case GRPG_CMPL:
+                    motor_command(0, 0);
+                    motor_switch_directions(BACKWARD);
+                    qtr8a_power_on(BACK);
                     *state = LFR;
                     return true;
                 default:
@@ -67,8 +83,13 @@ bool transition_state(volatile robot_state_e *state, robot_event_e event) {
             switch(event) {
                 case SW:
                     *state = IDLE;
+                    motor_command(0, 0);
+                    halt_gripper();
                     return true;
                 case GRPR_CMPL:
+                    motor_command(0, 0);
+                    motor_switch_directions(BACKWARD);
+                    qtr8a_power_on(BACK);
                     *state = LFR;
                     return true;
                 default:
