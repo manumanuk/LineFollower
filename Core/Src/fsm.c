@@ -119,16 +119,20 @@ static void blink_ld2_n_times(uint8_t n) {
     }
 }
 
-static void read_calibration_data(uint16_t *readings, double *levels, uint8_t numSensors) {
+static void read_calibration_data(qtr8a_instance_e instance, uint16_t *readings, double *levels, uint8_t numSensors) {
     uint32_t startTime = HAL_GetTick();
     uint32_t readingsTaken = 0;
 
-    double tempLevels[MAX_IR_ARRAY_SENSORS];
+    double tempLevels[MAX_IR_ARRAY_SENSORS] = {0.0};
 
     while(HAL_GetTick()-startTime < SENSOR_CALIB_TIME) {
-        if (qtr8a_get_readings(readings, numSensors, IR_ARRAY_ADC_TIMEOUT)) {
+        if (qtr8a_get_readings(instance, readings, numSensors, IR_ARRAY_ADC_TIMEOUT)) {
             for (uint8_t i=0; i<numSensors; i++) {
-                tempLevels[i] += readings[i];
+            	if (readingsTaken > 0) {
+					tempLevels[i] = tempLevels[i]*((float)readingsTaken/(readingsTaken+1)) + readings[i]/(readingsTaken+1);
+            	} else {
+                    tempLevels[i] += readings[i];
+            	}
             }
             readingsTaken++;
         }
@@ -136,9 +140,9 @@ static void read_calibration_data(uint16_t *readings, double *levels, uint8_t nu
 
     for (uint8_t i=0; i<numSensors; i++) {
         if (levels[i] != 0)
-            levels[i] = (levels[i] + tempLevels[i]/readingsTaken)/2;
+            levels[i] = (levels[i] + tempLevels[i])/2;
         else
-            levels[i] = tempLevels[i]/readingsTaken;
+            levels[i] = tempLevels[i];
     }
 }
 
@@ -152,7 +156,7 @@ static void calibrate_qtr8a_position_colour(qtr8a_instance_e position,
     for (uint8_t i=0; i<repetitions; i++) {
         blink_ld2_n_times(blinkIndicator);
         wait_for_button_press();
-        read_calibration_data(readings, levels, numSensors);
+        read_calibration_data(position, readings, levels, numSensors);
     }
 }
 
@@ -166,20 +170,20 @@ void calibration_sequence() {
     HAL_NVIC_DisableIRQ(EXTI15_10_IRQn);
 
     // Front red calibration
-    calibrate_qtr8a_position_colour(FRONT, RED, frontReadings, frontLevels, FRONT_IR_ARRAY_SENSORS, 1, 3);
+    calibrate_qtr8a_position_colour(FRONT, RED, frontReadings, frontLevels, FRONT_IR_ARRAY_SENSORS, 1, 1);
     qtr8a_set_levels(FRONT, RED, frontLevels);
 
     // Back red calibration
-    calibrate_qtr8a_position_colour(BACK, RED, backReadings, backLevels, BACK_IR_ARRAY_SENSORS, 2, 3);
-    qtr8a_set_levels(BACK, RED, backLevels);
+    // calibrate_qtr8a_position_colour(BACK, RED, backReadings, backLevels, BACK_IR_ARRAY_SENSORS, 2, 1);
+    // qtr8a_set_levels(BACK, RED, backLevels);
 
     // Front brown calibration
-    calibrate_qtr8a_position_colour(FRONT, BROWN, frontReadings, frontLevels, FRONT_IR_ARRAY_SENSORS, 1, 3);
+    calibrate_qtr8a_position_colour(FRONT, BROWN, frontReadings, frontLevels, FRONT_IR_ARRAY_SENSORS, 1, 1);
     qtr8a_set_levels(FRONT, BROWN, frontLevels);
 
     // Back brown calibration
-    calibrate_qtr8a_position_colour(BACK, BROWN, backReadings, backLevels, BACK_IR_ARRAY_SENSORS, 2, 3);
-    qtr8a_set_levels(BACK, BROWN, backLevels);
+    // calibrate_qtr8a_position_colour(BACK, BROWN, backReadings, backLevels, BACK_IR_ARRAY_SENSORS, 2, 1);
+    // qtr8a_set_levels(BACK, BROWN, backLevels);
 
     HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_SET);
     wait_for_button_press();

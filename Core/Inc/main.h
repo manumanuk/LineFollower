@@ -46,10 +46,15 @@ extern "C" {
 
 /* Exported macro ------------------------------------------------------------*/
 /* USER CODE BEGIN EM */
-#define FRONT_IR_ARRAY_SENSORS 8U
+#define DEBUG_MODE 1
+#define FRONT_IR_ARRAY_SENSORS 6U
+#if DEBUG_MODE
+#define BACK_IR_ARRAY_SENSORS 6U
+#else
 #define BACK_IR_ARRAY_SENSORS 8U
+#endif
 #define MAX_IR_ARRAY_SENSORS 8U
-#define IR_ARRAY_ADC_TIMEOUT 50U
+#define IR_ARRAY_ADC_TIMEOUT 400U
 #define SW_PORT GPIOC
 #define SW_PIN GPIO_PIN_13
 /* USER CODE END EM */
@@ -71,8 +76,6 @@ void Error_Handler(void);
 #define USART_TX_GPIO_Port GPIOA
 #define USART_RX_Pin GPIO_PIN_3
 #define USART_RX_GPIO_Port GPIOA
-#define LD2_Pin GPIO_PIN_5
-#define LD2_GPIO_Port GPIOA
 #define TMS_Pin GPIO_PIN_13
 #define TMS_GPIO_Port GPIOA
 #define TCK_Pin GPIO_PIN_14
@@ -81,7 +84,8 @@ void Error_Handler(void);
 #define SWO_GPIO_Port GPIOB
 
 /* USER CODE BEGIN Private defines */
-
+#define LD2_Pin GPIO_PIN_2
+#define LD2_GPIO_Port GPIOB
 /* USER CODE END Private defines */
 
 #ifdef __cplusplus

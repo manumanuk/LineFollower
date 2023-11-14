@@ -1,9 +1,14 @@
 #include "control.h"
 #include "tcs3472.h"
+#include "qtr8a.h"
 #include "stm32f4xx_hal.h"
 #include "main.h"
 
-#define BANG_BANG_POS_THRESH 1050U
+#define BANG_BANG_POS_THRESH 350U
+
+extern uint16_t frontColourCalibratedLevels[2][FRONT_IR_ARRAY_SENSORS];
+
+extern UART_HandleTypeDef huart2;
 
 static uint8_t currentLeftPwm;
 static uint8_t currentRightPwm;
@@ -15,7 +20,7 @@ static motor_dir_e direction;
 
 #define GRIPPER_GRIP_PWM 4U
 #define GRIPPER_RELEASE_PWM 11U
-#define GRIPPER_DELAY 100U
+#define GRIPPER_DELAY 3000U
 
 #define GRPR_SENSE_THRESH 5U
 #define GRPR_SPEED 50U
@@ -57,13 +62,27 @@ void halt_gripper() {
     HAL_TIM_PWM_Stop(&htim2, TIM_CHANNEL_2);
 }
 
+#define min(a, b) (((a) < (b)) ? (a) : (b))
+
 void ctrl_bang_bang_get_motor_cmd(uint16_t *qtrReadings, uint8_t numReadings, uint8_t *lMotorPwm, uint8_t *rMotorPwm, uint8_t speed) {
-    float position = 0;
-    uint32_t multiplier = 100;
-    
-    for (uint32_t i=1; i<numReadings+1; i++) {
-        position += multiplier*i*(((float)(qtrReadings[i]))/4096.0);
+    int16_t minVal = 1000;
+    for (uint8_t i=0; i<numReadings; i++) {
+    	minVal = min(minVal, (int16_t)qtrReadings[i]-frontColourCalibratedLevels[1][i]);
     }
+
+    double position = 0;
+    uint32_t multiplier = 100;
+    double sumOfWeights = 0.0;
+
+    for (uint32_t i=0; i<numReadings; i++) {
+    	double range = frontColourCalibratedLevels[0][i]-frontColourCalibratedLevels[1][i];
+    	double weightedValue = (-minVal)+1+qtrReadings[i]-frontColourCalibratedLevels[1][i];
+    	weightedValue = weightedValue/range;
+    	sumOfWeights += weightedValue;
+        position += multiplier*(i+1)*weightedValue;
+    }
+
+    position /= sumOfWeights;
 
     if (position > BANG_BANG_POS_THRESH) {
         *lMotorPwm = speed;
@@ -110,14 +129,14 @@ void call_grpr_sequence() {
         if (check_green()) {
             greenCount++;
         }
-        qtr8a_get_readings(backQtr8aReadings, BACK_IR_ARRAY_SENSORS, IR_ARRAY_ADC_TIMEOUT);
+        qtr8a_get_readings(BACK, backQtr8aReadings, BACK_IR_ARRAY_SENSORS, IR_ARRAY_ADC_TIMEOUT);
         ctrl_bang_bang_get_motor_cmd(backQtr8aReadings, BACK_IR_ARRAY_SENSORS, &lMotorPwm, &rMotorPwm, GRPR_SPEED);
         motor_command(lMotorPwm, rMotorPwm);
     }
 
     uint32_t currTime = HAL_GetTick();
     while(currTime - HAL_GetTick() < GRPR_REVERSE_TIME) {
-        qtr8a_get_readings(backQtr8aReadings, BACK_IR_ARRAY_SENSORS, IR_ARRAY_ADC_TIMEOUT);
+        qtr8a_get_readings(BACK, backQtr8aReadings, BACK_IR_ARRAY_SENSORS, IR_ARRAY_ADC_TIMEOUT);
         ctrl_bang_bang_get_motor_cmd(backQtr8aReadings, BACK_IR_ARRAY_SENSORS, &lMotorPwm, &rMotorPwm, GRPR_SPEED);
         motor_command(lMotorPwm, rMotorPwm);
     }

@@ -1,11 +1,17 @@
 #include "qtr8a.h"
 #include "main.h"
 
-#define IR_ARRAY_DUTY_CYCLE 100U
+#define IR_ARRAY_DUTY_CYCLE 50U
+#if DEBUG_MODE
+#define NUM_IR_READINGS 14U
+#else
+#define NUM_IR_READINGS 16U
+#endif
 
 extern TIM_HandleTypeDef htim3;
 extern ADC_HandleTypeDef hadc1;
 extern volatile bool adcReady;
+extern UART_HandleTypeDef huart2;
 
 uint16_t frontColourCalibratedLevels[2][FRONT_IR_ARRAY_SENSORS];
 uint16_t backColourCalibratedLevels[2][BACK_IR_ARRAY_SENSORS];
@@ -35,12 +41,15 @@ void qtr8a_change_duty_cycle(qtr8a_instance_e instance, uint8_t dutyCycle) {
         __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_3, dutyCycle);
 }
 
-bool qtr8a_get_readings(uint16_t *dataArr, uint8_t size, uint32_t timeout) {
+bool qtr8a_get_readings(qtr8a_instance_e instance, uint16_t *dataArr, uint8_t size, uint32_t timeout) {
     if (dataArr == NULL) {
         return false;
     }
     uint32_t count = 0;
-    HAL_ADC_Start_DMA(&hadc1, dataArr, size);
+    uint16_t readings[NUM_IR_READINGS] = {0};
+    adcReady = false;
+    HAL_ADC_Start_DMA(&hadc1, readings, NUM_IR_READINGS);
+
     while (!adcReady && count < timeout) {
       HAL_Delay(1);
       count++;
@@ -48,6 +57,16 @@ bool qtr8a_get_readings(uint16_t *dataArr, uint8_t size, uint32_t timeout) {
 
     if (count == timeout) {
         return false;
+    }
+
+    if (instance == FRONT) {
+        for(int i=0; i<size; i++) {
+            dataArr[i] = readings[i];
+        }
+    } else {
+        for(int i=0; i<size; i++) {
+            dataArr[i] = readings[i+FRONT_IR_ARRAY_SENSORS];
+        }
     }
 
     adcReady = false;
