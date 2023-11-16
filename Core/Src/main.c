@@ -169,7 +169,8 @@ int main(void)
 																  frontQtr8aReadings[7]);
         HAL_UART_Transmit(&huart2, buf, n, HAL_MAX_DELAY);
         HAL_Delay(500);
-        */
+		*/
+
         position = get_position_from_readings(FRONT, frontQtr8aReadings, FRONT_IR_ARRAY_SENSORS);
         ctrl_pid_get_motor_cmd(position, &lMotorPwm, &rMotorPwm);
         motor_command(lMotorPwm, rMotorPwm);
@@ -629,9 +630,9 @@ static void MX_TIM3_Init(void)
 
   /* USER CODE END TIM3_Init 1 */
   htim3.Instance = TIM3;
-  htim3.Init.Prescaler = 42;
+  htim3.Init.Prescaler = 1;
   htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim3.Init.Period = 100;
+  htim3.Init.Period = 200;
   htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim3.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   if (HAL_TIM_Base_Init(&htim3) != HAL_OK)

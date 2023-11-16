@@ -1,7 +1,7 @@
 #include "qtr8a.h"
 #include "main.h"
 
-#define IR_ARRAY_DUTY_CYCLE 90U
+#define IR_ARRAY_DUTY_CYCLE 20U
 #if DEBUG_MODE
 #define NUM_IR_READINGS 14U
 #else
@@ -106,12 +106,12 @@ double get_position_from_readings(qtr8a_instance_e instance, uint16_t *qtrReadin
     }
 
     position /= sumOfWeights;
-    /*
+
     char buf[100] = {0};
     uint16_t n = snprintf(buf, 100, "%f\r\n", position);
     HAL_UART_Transmit(&huart2, buf, n, HAL_MAX_DELAY);
     HAL_Delay(100);
-    */
+
 
     return position;
 }
