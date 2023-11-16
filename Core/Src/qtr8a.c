@@ -1,7 +1,7 @@
 #include "qtr8a.h"
 #include "main.h"
 
-#define IR_ARRAY_DUTY_CYCLE 50U
+#define IR_ARRAY_DUTY_CYCLE 90U
 #if DEBUG_MODE
 #define NUM_IR_READINGS 14U
 #else
@@ -80,4 +80,38 @@ void qtr8a_set_levels(qtr8a_instance_e instance, line_colour_e colour, double *c
     for (int i=0; i<size; i++) {
         levelsArr[i] = ((uint16_t)(calibReadings[i]));
     }
+}
+
+#define min(a, b) (((a) < (b)) ? (a) : (b))
+
+double get_position_from_readings(qtr8a_instance_e instance, uint16_t *qtrReadings, uint16_t numReadings) {
+    double position = 0;
+    uint16_t *redCalib = (instance == FRONT) ? frontColourCalibratedLevels[0] : backColourCalibratedLevels[0];
+    uint16_t *brownCalib = (instance == FRONT) ? frontColourCalibratedLevels[1] : backColourCalibratedLevels[1];
+
+    int16_t minVal = 1000;
+    for (uint8_t i=0; i<numReadings; i++) {
+    	minVal = min(minVal, (int16_t)qtrReadings[i]-brownCalib[i]);
+    }
+
+    uint32_t multiplier = 100;
+    double sumOfWeights = 0.0;
+
+    for (uint32_t i=0; i<numReadings; i++) {
+    	double range = redCalib[i]-brownCalib[i];
+    	double weightedValue = (-minVal)+1+qtrReadings[i]-brownCalib[i];
+    	weightedValue = weightedValue/range;
+    	sumOfWeights += weightedValue;
+        position += multiplier*(i+1)*weightedValue;
+    }
+
+    position /= sumOfWeights;
+    /*
+    char buf[100] = {0};
+    uint16_t n = snprintf(buf, 100, "%f\r\n", position);
+    HAL_UART_Transmit(&huart2, buf, n, HAL_MAX_DELAY);
+    HAL_Delay(100);
+    */
+
+    return position;
 }

@@ -11,6 +11,7 @@ typedef enum {
     BACK
 } qtr8a_instance_e;
 
+double get_position_from_readings(qtr8a_instance_e instance, uint16_t *qtrReadings, uint16_t numReadings);
 void qtr8a_power_on(qtr8a_instance_e instance);
 void qtr8a_power_off(qtr8a_instance_e instance);
 void qtr8a_change_duty_cycle(qtr8a_instance_e instance, uint8_t dutyCycle);

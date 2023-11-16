@@ -11,7 +11,7 @@ bool transition_state(volatile robot_state_e *state, robot_event_e event) {
             switch(event) {
                 case SW:
                     motor_command(0, 0);
-                    motor_switch_directions(FORWARD);
+                    motor_switch_directions(BACKWARD);
                     qtr8a_power_on(FRONT);
                     *state = LFF;
                     return true;

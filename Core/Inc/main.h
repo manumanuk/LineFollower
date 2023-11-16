@@ -47,7 +47,7 @@ extern "C" {
 /* Exported macro ------------------------------------------------------------*/
 /* USER CODE BEGIN EM */
 #define DEBUG_MODE 1
-#define FRONT_IR_ARRAY_SENSORS 6U
+#define FRONT_IR_ARRAY_SENSORS 8U
 #if DEBUG_MODE
 #define BACK_IR_ARRAY_SENSORS 6U
 #else

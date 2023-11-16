@@ -16,10 +16,9 @@ typedef enum {
 	BLUE
 } line_colour_e;
 
-#define BANG_BANG_SPEED 70U
-
-void ctrl_bang_bang_get_motor_cmd(uint16_t *qtrReadings, uint8_t numReadings, uint8_t *lMotorPwm, uint8_t *rMotorPwm, uint8_t speed);
-void motor_command(uint8_t lMotorPwm, uint8_t rMotorPwm);
+void ctrl_pid_get_motor_cmd(double position, uint32_t *lMotorPwm, uint32_t *rMotorPwm);
+void ctrl_bang_bang_get_motor_cmd(double position, uint32_t *lMotorPwm, uint32_t *rMotorPwm);
+void motor_command(uint32_t lMotorPwm, uint32_t rMotorPwm);
 void init_motors();
 void motor_switch_directions(motor_dir_e dir);
 void gripper_grip();

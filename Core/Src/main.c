@@ -134,8 +134,8 @@ int main(void)
   qtr8a_power_off(BACK);
 
   init_motors();
-  uint8_t lMotorPwm = 0;
-  uint8_t rMotorPwm = 0;
+  uint32_t lMotorPwm = 0;
+  uint32_t rMotorPwm = 0;
 
   /* USER CODE END 2 */
 
@@ -146,7 +146,7 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-
+    double position = 0.0;
     switch(robotState) {
       case CALIB:
         calibration_sequence();
@@ -157,9 +157,23 @@ int main(void)
         break;
       case LFF:
         qtr8a_get_readings(FRONT, frontQtr8aReadings, FRONT_IR_ARRAY_SENSORS, IR_ARRAY_ADC_TIMEOUT);
-        ctrl_bang_bang_get_motor_cmd(frontQtr8aReadings, FRONT_IR_ARRAY_SENSORS, &lMotorPwm, &rMotorPwm, BANG_BANG_SPEED);
+        /*
+        char buf[500] = {0};
+        uint16_t n = snprintf(buf, 500, "%i, %i, %i, %i, %i, %i, %i, %i\r\n", frontQtr8aReadings[0],
+        														  frontQtr8aReadings[1],
+																  frontQtr8aReadings[2],
+																  frontQtr8aReadings[3],
+																  frontQtr8aReadings[4],
+																  frontQtr8aReadings[5],
+																  frontQtr8aReadings[6],
+																  frontQtr8aReadings[7]);
+        HAL_UART_Transmit(&huart2, buf, n, HAL_MAX_DELAY);
+        HAL_Delay(500);
+        */
+        position = get_position_from_readings(FRONT, frontQtr8aReadings, FRONT_IR_ARRAY_SENSORS);
+        ctrl_pid_get_motor_cmd(position, &lMotorPwm, &rMotorPwm);
         motor_command(lMotorPwm, rMotorPwm);
-        
+
         /*
         if(check_blue())
           blueCount++;
@@ -172,7 +186,8 @@ int main(void)
         break;
       case LFR:
         qtr8a_get_readings(BACK, backQtr8aReadings, BACK_IR_ARRAY_SENSORS, IR_ARRAY_ADC_TIMEOUT);
-        ctrl_bang_bang_get_motor_cmd(backQtr8aReadings, BACK_IR_ARRAY_SENSORS, &lMotorPwm, &rMotorPwm, BANG_BANG_SPEED);
+        position = get_position_from_readings(BACK, backQtr8aReadings, BACK_IR_ARRAY_SENSORS);
+        ctrl_pid_get_motor_cmd(position, &lMotorPwm, &rMotorPwm);
         motor_command(lMotorPwm, rMotorPwm);
 
         /*
@@ -471,7 +486,7 @@ static void MX_TIM1_Init(void)
   htim1.Instance = TIM1;
   htim1.Init.Prescaler = 21;
   htim1.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim1.Init.Period = 100;
+  htim1.Init.Period = 1000;
   htim1.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim1.Init.RepetitionCounter = 0;
   htim1.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
