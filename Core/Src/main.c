@@ -136,6 +136,9 @@ int main(void)
   init_motors();
   uint32_t lMotorPwm = 0;
   uint32_t rMotorPwm = 0;
+//  gripper_release();
+//  HAL_Delay(2000);
+//  gripper_grip();
 
   /* USER CODE END 2 */
 
@@ -157,7 +160,7 @@ int main(void)
         break;
       case LFF:
         qtr8a_get_readings(FRONT, frontQtr8aReadings, FRONT_IR_ARRAY_SENSORS, IR_ARRAY_ADC_TIMEOUT);
-        /*
+/*
         char buf[500] = {0};
         uint16_t n = snprintf(buf, 500, "%i, %i, %i, %i, %i, %i, %i, %i\r\n", frontQtr8aReadings[0],
         														  frontQtr8aReadings[1],
@@ -169,11 +172,16 @@ int main(void)
 																  frontQtr8aReadings[7]);
         HAL_UART_Transmit(&huart2, buf, n, HAL_MAX_DELAY);
         HAL_Delay(500);
-        */
+*/
         position = get_position_from_readings(FRONT, frontQtr8aReadings, FRONT_IR_ARRAY_SENSORS);
         ctrl_pid_get_motor_cmd(position, &lMotorPwm, &rMotorPwm);
         motor_command(lMotorPwm, rMotorPwm);
-
+/*
+        char buffer[100] = {0};
+        uint16_t num = snprintf(buffer, 100, "%i, %i\r\n", lMotorPwm, rMotorPwm);
+        HAL_UART_Transmit(&huart2, buffer, num, HAL_MAX_DELAY);
+        HAL_Delay(500);
+*/
         /*
         if(check_blue())
           blueCount++;
@@ -629,7 +637,7 @@ static void MX_TIM3_Init(void)
 
   /* USER CODE END TIM3_Init 1 */
   htim3.Instance = TIM3;
-  htim3.Init.Prescaler = 42;
+  htim3.Init.Prescaler = 10;
   htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
   htim3.Init.Period = 100;
   htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;

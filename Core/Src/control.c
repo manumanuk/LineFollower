@@ -4,20 +4,20 @@
 #include "stm32f4xx_hal.h"
 #include "main.h"
 
-#define MOTOR_MAX_PWM 1000U
+#define MOTOR_MAX_PWM 700U
 #define MOTOR_UNSTALL_TIME 50U
 #define MOTOR_UNSTALL_SPEED 700U
 #define MOTOR_RIGHT_BIAS 50U
 
 #define BANG_BANG_SPEED 650U
-#define BANG_BANG_POS_THRESH 300U
+#define BANG_BANG_POS_THRESH 450U
 
-#define PID_BASE_SPEED 400U
+#define PID_BASE_SPEED 415U
 #define PID_DELTA_V_RANGE (MOTOR_MAX_PWM-PID_BASE_SPEED)
-#define PID_DESIRED_POS 410U
-#define PID_K_P 2.4
-#define PID_K_D 3.3
-#define PID_K_I 0
+#define PID_DESIRED_POS 490U
+#define PID_K_P 1.20
+#define PID_K_D 1.75
+#define PID_K_I 0.0
 
 extern UART_HandleTypeDef huart2;
 
@@ -38,7 +38,7 @@ static motor_state_t state = {
 
 #define GRIPPER_GRIP_PWM 4U
 #define GRIPPER_RELEASE_PWM 11U
-#define GRIPPER_DELAY 3000U
+#define GRIPPER_DELAY 1200U
 
 #define GRPR_SENSE_THRESH 5U
 #define GRPR_SPEED 50U
@@ -113,10 +113,12 @@ void ctrl_pid_get_motor_cmd(double position, uint32_t *lMotorPwm, uint32_t *rMot
         *rMotorPwm = PID_BASE_SPEED - MOTOR_RIGHT_BIAS;
     }
     char buf[50] = {0};
-    // uint16_t n = snprintf(buf, 50, "%f\r\n", deltaV);
-    // uint16_t n = snprintf(buf, 50, "%i, %i\r\n", *lMotorPwm, *rMotorPwm);
-    // HAL_UART_Transmit(&huart2, buf, n, HAL_MAX_DELAY);
-    // HAL_Delay(100);
+    /*
+    uint16_t n = snprintf(buf, 50, "%f\r\n", position);
+    //uint16_t n = snprintf(buf, 50, "%lu, %lu\r\n", *lMotorPwm, *rMotorPwm);
+    HAL_UART_Transmit(&huart2, buf, n, HAL_MAX_DELAY);
+    HAL_Delay(500);
+    */
 }
 
 void motor_command(uint32_t lMotorPwm, uint32_t rMotorPwm) {        

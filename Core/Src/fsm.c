@@ -129,7 +129,7 @@ static void read_calibration_data(qtr8a_instance_e instance, uint16_t *readings,
         if (qtr8a_get_readings(instance, readings, numSensors, IR_ARRAY_ADC_TIMEOUT)) {
             for (uint8_t i=0; i<numSensors; i++) {
             	if (readingsTaken > 0) {
-					tempLevels[i] = tempLevels[i]*((float)readingsTaken/(readingsTaken+1)) + readings[i]/(readingsTaken+1);
+					tempLevels[i] = tempLevels[i]*((double)readingsTaken/(readingsTaken+1)) + readings[i]/(readingsTaken+1);
             	} else {
                     tempLevels[i] += readings[i];
             	}
@@ -176,7 +176,9 @@ void calibration_sequence() {
     // Back red calibration
     // calibrate_qtr8a_position_colour(BACK, RED, backReadings, backLevels, BACK_IR_ARRAY_SENSORS, 2, 1);
     // qtr8a_set_levels(BACK, RED, backLevels);
-
+    for (int i=0; i<FRONT_IR_ARRAY_SENSORS; i++) {
+    	frontLevels[i] = 0.0;
+    }
     // Front brown calibration
     calibrate_qtr8a_position_colour(FRONT, BROWN, frontReadings, frontLevels, FRONT_IR_ARRAY_SENSORS, 1, 1);
     qtr8a_set_levels(FRONT, BROWN, frontLevels);
