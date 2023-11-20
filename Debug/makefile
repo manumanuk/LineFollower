@@ -60,8 +60,8 @@ all: main-build
 main-build: mte380project.elf secondary-outputs
 
 # Tool invocations
-mte380project.elf mte380project.map: $(OBJS) $(USER_OBJS) C:\Users\ethan\Desktop\LineFollower\STM32F401RETX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
-	arm-none-eabi-gcc -o "mte380project.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"C:\Users\ethan\Desktop\LineFollower\STM32F401RETX_FLASH.ld" --specs=nosys.specs -Wl,-Map="mte380project.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -u _printf_float -Wl,--start-group -lc -lm -Wl,--end-group
+mte380project.elf mte380project.map: $(OBJS) $(USER_OBJS) C:\Users\kalia\STM32CubeIDE\workspace_1.13.2\mte380project\STM32F401RETX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
+	arm-none-eabi-gcc -o "mte380project.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"C:\Users\kalia\STM32CubeIDE\workspace_1.13.2\mte380project\STM32F401RETX_FLASH.ld" --specs=nosys.specs -Wl,-Map="mte380project.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -u _printf_float -Wl,--start-group -lc -lm -Wl,--end-group
 	@echo 'Finished building target: $@'
 	@echo ' '
 

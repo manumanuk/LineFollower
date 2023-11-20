@@ -1,7 +1,9 @@
+#include "common.h"
 #include "qtr8a.h"
-#include "main.h"
 
-#define IR_ARRAY_DUTY_CYCLE 50U
+// Red/brown: 50%
+// Black/brown: 100%
+#define IR_ARRAY_DUTY_CYCLE 100U
 #if DEBUG_MODE
 #define NUM_IR_READINGS 14U
 #else
@@ -11,10 +13,9 @@
 extern TIM_HandleTypeDef htim3;
 extern ADC_HandleTypeDef hadc1;
 extern volatile bool adcReady;
-extern UART_HandleTypeDef huart2;
 
-uint16_t frontColourCalibratedLevels[2][FRONT_IR_ARRAY_SENSORS];
-uint16_t backColourCalibratedLevels[2][BACK_IR_ARRAY_SENSORS];
+static uint16_t frontColourCalibratedLevels[2][FRONT_IR_ARRAY_SENSORS];
+static uint16_t backColourCalibratedLevels[2][BACK_IR_ARRAY_SENSORS];
 
 void qtr8a_power_on(qtr8a_instance_e instance) {
     if (instance == FRONT) {
@@ -34,19 +35,14 @@ void qtr8a_power_off(qtr8a_instance_e instance) {
     }
 }
 
-void qtr8a_change_duty_cycle(qtr8a_instance_e instance, uint8_t dutyCycle) {
-    if (instance == FRONT)
-        __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, dutyCycle);
-    else
-        __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_3, dutyCycle);
-}
-
+float prevReadings[NUM_IR_READINGS] = {0U};
+float alpha = 0;
 bool qtr8a_get_readings(qtr8a_instance_e instance, uint16_t *dataArr, uint8_t size, uint32_t timeout) {
     if (dataArr == NULL) {
         return false;
     }
     uint32_t count = 0;
-    uint16_t readings[NUM_IR_READINGS] = {0};
+    uint16_t readings[NUM_IR_READINGS] = {0U};
     adcReady = false;
     HAL_ADC_Start_DMA(&hadc1, readings, NUM_IR_READINGS);
 
@@ -58,13 +54,18 @@ bool qtr8a_get_readings(qtr8a_instance_e instance, uint16_t *dataArr, uint8_t si
     if (count == timeout) {
         return false;
     }
+    
+    for (uint8_t i=0; i<NUM_IR_READINGS; i++) {
+        prevReadings[i] = alpha*prevReadings[i]+(1-alpha)*((float)readings[i]);
+        readings[i] = (uint16_t)prevReadings[i];
+    }
 
     if (instance == FRONT) {
-        for(int i=0; i<size; i++) {
+        for(uint8_t i=0; i<size; i++) {
             dataArr[i] = readings[i];
         }
     } else {
-        for(int i=0; i<size; i++) {
+        for(uint8_t i=0; i<size; i++) {
             dataArr[i] = readings[i+FRONT_IR_ARRAY_SENSORS];
         }
     }
@@ -82,42 +83,27 @@ void qtr8a_set_levels(qtr8a_instance_e instance, line_colour_e colour, double *c
     }
 }
 
-#define max(a, b) (((a) > (b)) ? (a) : (b))
-
 double get_position_from_readings(qtr8a_instance_e instance, uint16_t *qtrReadings, uint16_t numReadings) {
     double position = 0;
-    uint16_t *redCalib = (instance == FRONT) ? frontColourCalibratedLevels[0] : backColourCalibratedLevels[0];
-    uint16_t *brownCalib = (instance == FRONT) ? frontColourCalibratedLevels[1] : backColourCalibratedLevels[1];
+    uint16_t *redCalib = (instance == FRONT) ? frontColourCalibratedLevels[RED] : backColourCalibratedLevels[RED];
+    uint16_t *brownCalib = (instance == FRONT) ? frontColourCalibratedLevels[BROWN] : backColourCalibratedLevels[BROWN];
 
     uint32_t multiplier = 100;
     double sumOfWeights = 0.0;
-
-    for (uint32_t i=0; i<numReadings; i++) {
+    
+    uint32_t i=0;
+    
+    for (; i<numReadings; i++) {
     	double range = redCalib[i]-brownCalib[i];
     	double weightedValue = max(0, qtrReadings[i]-brownCalib[i]);
     	weightedValue = weightedValue/range;
-    	/*
-        char buf[100] = {0};
-        uint16_t n = snprintf(buf, 100, "%f, ", weightedValue);
-        HAL_UART_Transmit(&huart2, buf, n, HAL_MAX_DELAY);
-		*/
+
     	sumOfWeights += weightedValue;
         position += multiplier*(i+1)*weightedValue;
     }
     sumOfWeights += 0.0001;
-    /*
-    char newLin[] = "\r\n";
-    HAL_UART_Transmit(&huart2, newLin, sizeof(newLin), HAL_MAX_DELAY);
-    HAL_Delay(100);
-	*/
-    position /= sumOfWeights;
 
-/*
-    char buf[100] = {0};
-    uint16_t n = snprintf(buf, 100, "%f\r\n", position);
-    HAL_UART_Transmit(&huart2, buf, n, HAL_MAX_DELAY);
-    HAL_Delay(100);
-*/
+    position /= sumOfWeights;
 
     return position;
 }

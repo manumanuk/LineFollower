@@ -2,27 +2,29 @@
 #include "tcs3472.h"
 #include "qtr8a.h"
 #include "stm32f4xx_hal.h"
-#include "main.h"
+#include "common.h"
 
-#define MOTOR_MAX_PWM 700U
+#define MOTOR_MAX_PWM 500U
 #define MOTOR_UNSTALL_TIME 50U
-#define MOTOR_UNSTALL_SPEED 700U
-#define MOTOR_RIGHT_BIAS 50U
+#define MOTOR_UNSTALL_SPEED 850U
+#define MOTOR_BALANCE_BIAS 0U
 
 #define BANG_BANG_SPEED 650U
 #define BANG_BANG_POS_THRESH 450U
 
-#define PID_BASE_SPEED 415U
+#define PID_BASE_SPEED 400U
 #define PID_DELTA_V_RANGE (MOTOR_MAX_PWM-PID_BASE_SPEED)
-#define PID_DESIRED_POS 490U
-#define PID_K_P 1.20
-#define PID_K_D 1.75
-#define PID_K_I 0.0
+#define PID_DESIRED_POS 450U
+float PID_K_P = 0.8;
+float PID_K_D = 0.2;
+float PID_K_I = 0;
 
 extern UART_HandleTypeDef huart2;
 
 extern TIM_HandleTypeDef htim1;
 extern TIM_HandleTypeDef htim2;
+
+float globalPosition = 0.0;
 
 typedef struct {
     motor_dir_e direction;
@@ -30,11 +32,7 @@ typedef struct {
     uint32_t rMotorPwm;
 } motor_state_t;
 
-static motor_state_t state = {
-    FORWARD,
-    0,
-    0
-};
+static motor_state_t state;
 
 #define GRIPPER_GRIP_PWM 4U
 #define GRIPPER_RELEASE_PWM 11U
@@ -61,7 +59,7 @@ void init_motors() {
 }
 
 void gripper_grip() {
-	htim2.Instance->CCR1 = GRIPPER_GRIP_PWM;
+	htim2.Instance->CCR1 = GRIPPER_RELEASE_PWM;
 
 	HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
 	HAL_Delay(GRIPPER_DELAY);
@@ -69,7 +67,7 @@ void gripper_grip() {
 }
 
 void gripper_release() {
-	htim2.Instance->CCR1 = GRIPPER_RELEASE_PWM;
+	htim2.Instance->CCR1 = GRIPPER_GRIP_PWM;
 
 	HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
 	HAL_Delay(GRIPPER_DELAY);
@@ -82,7 +80,6 @@ void halt_gripper() {
 
 
 void ctrl_bang_bang_get_motor_cmd(double position, uint32_t *lMotorPwm, uint32_t *rMotorPwm) {
-
     if (position > BANG_BANG_POS_THRESH) {
         *lMotorPwm = BANG_BANG_SPEED;
         *rMotorPwm = 0;
@@ -106,26 +103,26 @@ void ctrl_pid_get_motor_cmd(double position, uint32_t *lMotorPwm, uint32_t *rMot
     if (deltaV > 0) {
         *lMotorPwm = PID_BASE_SPEED;
         uint16_t controlVal = ((uint16_t)deltaV) < PID_DELTA_V_RANGE ? ((uint16_t)deltaV) : PID_DELTA_V_RANGE;
-        *rMotorPwm = PID_BASE_SPEED + controlVal - MOTOR_RIGHT_BIAS;
+        *rMotorPwm = PID_BASE_SPEED + controlVal;
     } else {
         uint16_t controlVal = ((uint16_t)(-deltaV)) < PID_DELTA_V_RANGE ? ((uint16_t)(-deltaV)) : PID_DELTA_V_RANGE;
         *lMotorPwm = PID_BASE_SPEED + controlVal;
-        *rMotorPwm = PID_BASE_SPEED - MOTOR_RIGHT_BIAS;
+        *rMotorPwm = PID_BASE_SPEED;
     }
-    char buf[50] = {0};
-    /*
-    uint16_t n = snprintf(buf, 50, "%f\r\n", position);
-    //uint16_t n = snprintf(buf, 50, "%lu, %lu\r\n", *lMotorPwm, *rMotorPwm);
-    HAL_UART_Transmit(&huart2, buf, n, HAL_MAX_DELAY);
-    HAL_Delay(500);
-    */
+
+    if (state.direction == FORWARD)
+        lMotorPwm -= MOTOR_BALANCE_BIAS;
+    else
+        rMotorPwm -= MOTOR_BALANCE_BIAS;
 }
 
 void motor_command(uint32_t lMotorPwm, uint32_t rMotorPwm) {        
     uint32_t lChannel = (state.direction == FORWARD) ? TIM_CHANNEL_1 : TIM_CHANNEL_4;
     uint32_t rChannel = (state.direction == FORWARD) ? TIM_CHANNEL_2 : TIM_CHANNEL_3;
-
+    
+    /*
     if (state.lMotorPwm == 0 && lMotorPwm != 0) {
+        if (state.direction == FORWARD)
         __HAL_TIM_SET_COMPARE(&htim1, lChannel, MOTOR_UNSTALL_SPEED);
         HAL_Delay(MOTOR_UNSTALL_TIME);
     }
@@ -133,6 +130,7 @@ void motor_command(uint32_t lMotorPwm, uint32_t rMotorPwm) {
         __HAL_TIM_SET_COMPARE(&htim1, rChannel, MOTOR_UNSTALL_SPEED);
         HAL_Delay(MOTOR_UNSTALL_TIME);
     }
+    */
 
     __HAL_TIM_SET_COMPARE(&htim1, lChannel, lMotorPwm);
     __HAL_TIM_SET_COMPARE(&htim1, rChannel, rMotorPwm);
@@ -152,11 +150,31 @@ void motor_switch_directions(motor_dir_e dir) {
 	__HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_4, 0);
 }
 
+void call_lf_sequence() {
+    uint16_t readings[MAX_IR_ARRAY_SENSORS];
+
+    qtr8a_instance_e instance = (state.direction == FORWARD) ? FRONT : BACK;
+    uint8_t numSensors = (state.direction == FORWARD) ? FRONT_IR_ARRAY_SENSORS : BACK_IR_ARRAY_SENSORS;
+
+    if (!qtr8a_get_readings(instance, readings, numSensors, IR_ARRAY_ADC_TIMEOUT))
+        return;
+        
+    double position = get_position_from_readings(instance, readings, numSensors);
+    globalPosition = (float)position;
+
+    uint32_t lMotorPwm = 0;
+    uint32_t rMotorPwm = 0;
+
+    ctrl_pid_get_motor_cmd(position, &lMotorPwm, &rMotorPwm);
+    motor_command(lMotorPwm, rMotorPwm);
+}
+
 void call_grpg_sequence() {
     gripper_grip();
 }
 
 void call_grpr_sequence() {
+    /*
     motor_command(GRPR_SPEED, GRPR_SPEED);
     uint8_t greenCount = 0;
     uint16_t backQtr8aReadings[FRONT_IR_ARRAY_SENSORS];
@@ -167,21 +185,14 @@ void call_grpr_sequence() {
         if (check_green()) {
             greenCount++;
         }
-        double position = 0.0;
-        qtr8a_get_readings(BACK, backQtr8aReadings, BACK_IR_ARRAY_SENSORS, IR_ARRAY_ADC_TIMEOUT);
-        position = get_position_from_readings(BACK, backQtr8aReadings, BACK_IR_ARRAY_SENSORS);
-        ctrl_bang_bang_get_motor_cmd(position, &lMotorPwm, &rMotorPwm);
-        motor_command(lMotorPwm, rMotorPwm);
+        call_lf_sequence();
     }
 
     uint32_t currTime = HAL_GetTick();
     while(currTime - HAL_GetTick() < GRPR_REVERSE_TIME) {
-        double position = 0.0;
-        qtr8a_get_readings(BACK, backQtr8aReadings, BACK_IR_ARRAY_SENSORS, IR_ARRAY_ADC_TIMEOUT);
-        position = get_position_from_readings(BACK, backQtr8aReadings, BACK_IR_ARRAY_SENSORS);
-        ctrl_bang_bang_get_motor_cmd(position, &lMotorPwm, &rMotorPwm);
-        motor_command(lMotorPwm, rMotorPwm);
+        call_lf_sequence();
     }
+    */
 
     motor_command(0, 0);
     gripper_release();

@@ -11,7 +11,7 @@ typedef struct {
 
 static tcs_settings_t settings[] = {
   {TCS_REG_ENABLE, TCS_REG_ENABLE_MASK_AEN | TCS_REG_ENABLE_MASK_PON},
-  {TCS_REG_ATIME, 0xF6U},
+  {TCS_REG_ATIME, 0xFFU},
   {TCS_REG_CONTROL, 1U}
 };
 
@@ -45,10 +45,18 @@ bool tcs3472_get_colour_data(uint16_t *rgbc) {
   return true;
 }
 
+static void tcs3472_convert_raw_to_normalized(uint16_t *rgbc, double *colourData) {
+  colourData[0] = ((double)rgbc[1])/rgbc[0];
+  colourData[1] = ((double)rgbc[2])/rgbc[0];
+  colourData[2] = ((double)rgbc[3])/rgbc[0];
+}
+
 bool check_green() {
     uint16_t rgbc[4];
+    double colourData[3];
     if(tcs3472_get_colour_data(rgbc)) {
-        if (((float)rgbc[0])/rgbc[3] < 150 && ((float)rgbc[1])/rgbc[3] > 150 && ((float)rgbc[2])/rgbc[3] < 150) {
+        tcs3472_convert_raw_to_normalized(rgbc, colourData);
+        if (colourData[0] < 0.26 && colourData[1] > 0.46) {
             return true;
         }
     }
@@ -58,8 +66,10 @@ bool check_green() {
 
 bool check_blue() {
     uint16_t rgbc[4];
+    double colourData[3];
     if(tcs3472_get_colour_data(rgbc)) {
-        if (((float)rgbc[0])/rgbc[3] < 150 && ((float)rgbc[1])/rgbc[3] < 150 && ((float)rgbc[2])/rgbc[3] > 150) {
+        tcs3472_convert_raw_to_normalized(rgbc, colourData);
+        if (colourData[0] > 0.45) {
             return true;
         }
     }

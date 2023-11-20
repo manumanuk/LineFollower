@@ -9,13 +9,6 @@ typedef enum {
 	BACKWARD
 } motor_dir_e;
 
-typedef enum {
-	RED = 0,
-	BROWN,
-	GREEN,
-	BLUE
-} line_colour_e;
-
 void ctrl_pid_get_motor_cmd(double position, uint32_t *lMotorPwm, uint32_t *rMotorPwm);
 void ctrl_bang_bang_get_motor_cmd(double position, uint32_t *lMotorPwm, uint32_t *rMotorPwm);
 void motor_command(uint32_t lMotorPwm, uint32_t rMotorPwm);

@@ -1,21 +1,31 @@
 #include "fsm.h"
-#include "main.h"
+#include "common.h"
 #include "qtr8a.h"
 #include "control.h"
+#include <string.h>
 
 #define SENSOR_CALIB_TIME 100U
+
+static void blink_ld2_n_times(uint8_t n, uint32_t delay);
+static void wait_for_button_press();
+static void calibrate_qtr8a_position_colour(qtr8a_instance_e position,
+                                            double *levels,
+                                            uint8_t numSensors,
+                                            uint8_t blinkIndicator,
+                                            uint8_t repetitions);
 
 bool transition_state(volatile robot_state_e *state, robot_event_e event) {
     switch (*state) {
         case IDLE: {
             switch(event) {
-                case SW:
+                case SWLONG:
+                    HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_SET);
                     motor_command(0, 0);
-                    motor_switch_directions(BACKWARD);
+                    motor_switch_directions(FORWARD);
                     qtr8a_power_on(FRONT);
                     *state = LFF;
                     return true;
-                case SWLONG:
+                case SW:
                     *state = CALIB;
                     return true;
                 default:
@@ -34,9 +44,9 @@ bool transition_state(volatile robot_state_e *state, robot_event_e event) {
         case LFF: {
             switch(event) {
                 case SW:
-                    motor_command(0, 0);
                     qtr8a_power_off(FRONT);
                     *state = IDLE;
+                    motor_command(0, 0);
                     return true;
                 case BLUE_EVT:
                     motor_command(0, 0);
@@ -110,20 +120,21 @@ static void wait_for_button_press() {
     }
 }
 
-static void blink_ld2_n_times(uint8_t n) {
+static void blink_ld2_n_times(uint8_t n, uint32_t delay) {
     for (int i=0; i<n; i++) {
         HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_SET);
-        HAL_Delay(1000);
+        HAL_Delay(delay);
         HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
-        HAL_Delay(1000);
+        HAL_Delay(delay);
     }
 }
 
-static void read_calibration_data(qtr8a_instance_e instance, uint16_t *readings, double *levels, uint8_t numSensors) {
+static void read_calibration_data(qtr8a_instance_e instance, double *levels, uint8_t numSensors) {
+    uint16_t readings[MAX_IR_ARRAY_SENSORS] = {0U};
+    double tempLevels[MAX_IR_ARRAY_SENSORS] = {0.0F};
+
     uint32_t startTime = HAL_GetTick();
     uint32_t readingsTaken = 0;
-
-    double tempLevels[MAX_IR_ARRAY_SENSORS] = {0.0};
 
     while(HAL_GetTick()-startTime < SENSOR_CALIB_TIME) {
         if (qtr8a_get_readings(instance, readings, numSensors, IR_ARRAY_ADC_TIMEOUT)) {
@@ -147,49 +158,45 @@ static void read_calibration_data(qtr8a_instance_e instance, uint16_t *readings,
 }
 
 static void calibrate_qtr8a_position_colour(qtr8a_instance_e position,
-                                            line_colour_e colour,
-                                            uint16_t *readings,
                                             double *levels,
                                             uint8_t numSensors,
                                             uint8_t blinkIndicator,
                                             uint8_t repetitions) {
+    memset(levels, 0.0F, numSensors*sizeof(double));
+
     for (uint8_t i=0; i<repetitions; i++) {
-        blink_ld2_n_times(blinkIndicator);
+        blink_ld2_n_times(blinkIndicator, 1000);
         wait_for_button_press();
-        read_calibration_data(position, readings, levels, numSensors);
+        read_calibration_data(position, levels, numSensors);
     }
 }
 
 void calibration_sequence() {
-    uint16_t frontReadings[FRONT_IR_ARRAY_SENSORS] = {0U};
-    uint16_t backReadings[BACK_IR_ARRAY_SENSORS] = {0U};
-
-    double frontLevels[FRONT_IR_ARRAY_SENSORS] = {0.0F};
-    double backLevels[BACK_IR_ARRAY_SENSORS] = {0.0F};
+    double frontLevels[FRONT_IR_ARRAY_SENSORS];
+    double backLevels[BACK_IR_ARRAY_SENSORS];
 
     HAL_NVIC_DisableIRQ(EXTI15_10_IRQn);
 
     // Front red calibration
-    calibrate_qtr8a_position_colour(FRONT, RED, frontReadings, frontLevels, FRONT_IR_ARRAY_SENSORS, 1, 1);
+    calibrate_qtr8a_position_colour(FRONT, frontLevels, FRONT_IR_ARRAY_SENSORS, 1, 1);
     qtr8a_set_levels(FRONT, RED, frontLevels);
 
-    // Back red calibration
-    // calibrate_qtr8a_position_colour(BACK, RED, backReadings, backLevels, BACK_IR_ARRAY_SENSORS, 2, 1);
-    // qtr8a_set_levels(BACK, RED, backLevels);
-    for (int i=0; i<FRONT_IR_ARRAY_SENSORS; i++) {
-    	frontLevels[i] = 0.0;
-    }
     // Front brown calibration
-    calibrate_qtr8a_position_colour(FRONT, BROWN, frontReadings, frontLevels, FRONT_IR_ARRAY_SENSORS, 1, 1);
+    calibrate_qtr8a_position_colour(FRONT, frontLevels, FRONT_IR_ARRAY_SENSORS, 1, 1);
     qtr8a_set_levels(FRONT, BROWN, frontLevels);
 
+    // Back red calibration
+    //calibrate_qtr8a_position_colour(BACK, backLevels, BACK_IR_ARRAY_SENSORS, 2, 1);
+    //qtr8a_set_levels(BACK, RED, backLevels);
+
     // Back brown calibration
-    // calibrate_qtr8a_position_colour(BACK, BROWN, backReadings, backLevels, BACK_IR_ARRAY_SENSORS, 2, 1);
-    // qtr8a_set_levels(BACK, BROWN, backLevels);
+    //calibrate_qtr8a_position_colour(BACK, backLevels, BACK_IR_ARRAY_SENSORS, 2, 1);
+    //qtr8a_set_levels(BACK, BROWN, backLevels);
 
     HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_SET);
     wait_for_button_press();
     HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
+    HAL_Delay(500);
 
     HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);
 }
