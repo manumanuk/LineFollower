@@ -4,23 +4,27 @@
 #include "stm32f4xx_hal.h"
 #include "common.h"
 
-#define MOTOR_MAX_PWM 500U
+uint32_t MOTOR_MAX_PWM = 600U;
 #define MOTOR_UNSTALL_TIME 50U
 #define MOTOR_UNSTALL_SPEED 850U
 #define MOTOR_BALANCE_BIAS 0U
 
+#define LF_MOTOR_CHANNEL TIM_CHANNEL_2
+#define RF_MOTOR_CHANNEL TIM_CHANNEL_1
+#define LB_MOTOR_CHANNEL TIM_CHANNEL_3
+#define RB_MOTOR_CHANNEL TIM_CHANNEL_4
+
 #define BANG_BANG_SPEED 650U
 #define BANG_BANG_POS_THRESH 450U
 
-#define PID_BASE_SPEED 400U
+uint32_t PID_BASE_SPEED = 425U;
 #define PID_DELTA_V_RANGE (MOTOR_MAX_PWM-PID_BASE_SPEED)
-#define PID_DESIRED_POS 450U
-float PID_K_P = 0.8;
-float PID_K_D = 0.2;
+uint32_t PID_DESIRED_POS = 480U;
+float PID_K_P = 1.0;
+float PID_K_D = 3.0;
 float PID_K_I = 0;
 
 extern UART_HandleTypeDef huart2;
-
 extern TIM_HandleTypeDef htim1;
 extern TIM_HandleTypeDef htim2;
 
@@ -109,28 +113,11 @@ void ctrl_pid_get_motor_cmd(double position, uint32_t *lMotorPwm, uint32_t *rMot
         *lMotorPwm = PID_BASE_SPEED + controlVal;
         *rMotorPwm = PID_BASE_SPEED;
     }
-
-    if (state.direction == FORWARD)
-        lMotorPwm -= MOTOR_BALANCE_BIAS;
-    else
-        rMotorPwm -= MOTOR_BALANCE_BIAS;
 }
 
 void motor_command(uint32_t lMotorPwm, uint32_t rMotorPwm) {        
-    uint32_t lChannel = (state.direction == FORWARD) ? TIM_CHANNEL_1 : TIM_CHANNEL_4;
-    uint32_t rChannel = (state.direction == FORWARD) ? TIM_CHANNEL_2 : TIM_CHANNEL_3;
-    
-    /*
-    if (state.lMotorPwm == 0 && lMotorPwm != 0) {
-        if (state.direction == FORWARD)
-        __HAL_TIM_SET_COMPARE(&htim1, lChannel, MOTOR_UNSTALL_SPEED);
-        HAL_Delay(MOTOR_UNSTALL_TIME);
-    }
-    if (state.rMotorPwm == 0 && rMotorPwm != 0) {
-        __HAL_TIM_SET_COMPARE(&htim1, rChannel, MOTOR_UNSTALL_SPEED);
-        HAL_Delay(MOTOR_UNSTALL_TIME);
-    }
-    */
+    uint32_t lChannel = (state.direction == FORWARD) ? LF_MOTOR_CHANNEL : LB_MOTOR_CHANNEL;
+    uint32_t rChannel = (state.direction == FORWARD) ? RF_MOTOR_CHANNEL : RB_MOTOR_CHANNEL;
 
     __HAL_TIM_SET_COMPARE(&htim1, lChannel, lMotorPwm);
     __HAL_TIM_SET_COMPARE(&htim1, rChannel, rMotorPwm);
