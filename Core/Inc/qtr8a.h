@@ -16,6 +16,7 @@ void qtr8a_power_on(qtr8a_instance_e instance);
 void qtr8a_power_off(qtr8a_instance_e instance);
 bool qtr8a_get_readings(qtr8a_instance_e instance, uint16_t *dataArr, uint8_t size, uint32_t timeout);
 void qtr8a_set_levels(qtr8a_instance_e instance, line_colour_e colour, double *calibReadings);
+void qtr8a_set_range(qtr8a_instance_e instance, line_colour_e colour, double *stdev);
 double get_position_from_readings(qtr8a_instance_e instance, uint16_t *qtrReadings, uint16_t numReadings);
-
+double get_position_from_readings_alternate(qtr8a_instance_e instance, uint16_t *qtrReadings, uint16_t numReadings);
 #endif /* QTR8A_H_*/

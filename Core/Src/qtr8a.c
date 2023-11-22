@@ -3,7 +3,7 @@
 
 // Red/brown: 50%
 // Black/brown: 100%
-#define IR_ARRAY_DUTY_CYCLE 100U
+uint32_t IR_ARRAY_DUTY_CYCLE = 120U;
 #if DEBUG_MODE
 #define NUM_IR_READINGS 14U
 #else
@@ -16,6 +16,8 @@ extern volatile bool adcReady;
 
 static uint16_t frontColourCalibratedLevels[2][FRONT_IR_ARRAY_SENSORS];
 static uint16_t backColourCalibratedLevels[2][BACK_IR_ARRAY_SENSORS];
+static uint16_t frontColourCalibratedRanges[2][FRONT_IR_ARRAY_SENSORS];
+static uint16_t backColourCalibratedRanges[2][BACK_IR_ARRAY_SENSORS];
 
 void qtr8a_power_on(qtr8a_instance_e instance) {
     if (instance == FRONT) {
@@ -81,6 +83,38 @@ void qtr8a_set_levels(qtr8a_instance_e instance, line_colour_e colour, double *c
     for (int i=0; i<size; i++) {
         levelsArr[i] = ((uint16_t)(calibReadings[i]));
     }
+}
+
+void qtr8a_set_range(qtr8a_instance_e instance, line_colour_e colour, double *stdev) {
+    uint16_t *stdevArr = (instance == FRONT) ? frontColourCalibratedRanges[colour] : backColourCalibratedRanges[colour];
+    uint8_t size = (instance == FRONT) ? FRONT_IR_ARRAY_SENSORS : BACK_IR_ARRAY_SENSORS;
+
+    for (int i=0; i<size; i++) {
+        stdevArr[i] = ((uint16_t)(2*sqrt(stdev[i])));
+    }
+}
+
+double get_position_from_readings_alternate(qtr8a_instance_e instance, uint16_t *qtrReadings, uint16_t numReadings) {
+    uint16_t *redAvg = (instance == FRONT) ? frontColourCalibratedLevels[RED] : backColourCalibratedLevels[RED];
+    uint16_t *redRange = (instance == FRONT) ? frontColourCalibratedRanges[RED] : backColourCalibratedRanges[RED];
+    
+    uint32_t multiplier = 100;
+    uint8_t i=0;
+    double position = 0.0;
+    uint32_t sumOfWeights = 0.0;
+
+    for (; i<numReadings; i++) {
+        if (qtrReadings[i] > redAvg[i]-redRange[i] && qtrReadings[i] < redAvg[i]+redRange[i]) {
+            position += multiplier*(i+1);
+            sumOfWeights += 1;
+        }
+    }
+    if (sumOfWeights == 0)
+        return 0.0;
+    
+    position /= sumOfWeights;
+
+    return position;
 }
 
 double get_position_from_readings(qtr8a_instance_e instance, uint16_t *qtrReadings, uint16_t numReadings) {
