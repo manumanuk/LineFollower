@@ -41,9 +41,12 @@
 
 #define TCS_TOTAL_DATA_BYTES 8U
 
-void tcs3472_init(void);
-bool tcs3472_get_colour_data(uint16_t *rgbc);
-bool check_green();
-bool check_blue();
+typedef enum {
+    LEFT_COLOUR_SENSOR,
+    RIGHT_COLOUR_SENSOR
+} tcs3472_instance_e;
+
+void tcs3472_init(tcs3472_instance_e instance);
+bool tcs3472_get_colour_data(tcs3472_instance_e instance, float *rgb);
 
 #endif /* TCS_3472_H_ */

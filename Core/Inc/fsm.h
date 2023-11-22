@@ -8,17 +8,13 @@ typedef enum {
     IDLE,
     CALIB,
     LFF,
-    LFR,
-    GRPG,
-    GRPR
+    GRPG
 } robot_state_e;
 
 typedef enum {
     SW,
     SWLONG,
     BLUE_EVT,
-    GREEN_EVT,
-    GRPR_CMPL,
     GRPG_CMPL,
     CALIB_CMPL
 } robot_event_e;

@@ -3,18 +3,6 @@
 
 #include <stdarg.h>
 
-#define DEBUG_MODE 1
-
-#define MAX_IR_ARRAY_SENSORS 8U
-#define IR_ARRAY_ADC_TIMEOUT 400U
-#define FRONT_IR_ARRAY_SENSORS 8U
-
-#if DEBUG_MODE
-#define BACK_IR_ARRAY_SENSORS 6U
-#else
-#define BACK_IR_ARRAY_SENSORS 8U
-#endif
-
 #define SW_PORT GPIOC
 #define SW_PIN GPIO_PIN_13
 
