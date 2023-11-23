@@ -125,7 +125,7 @@ int main(void)
   init_motors();
 
   /* USER CODE END 2 */
-
+  
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
@@ -145,7 +145,7 @@ int main(void)
         break;
       }
       case LFF: {
-    	/*
+        /*
         float leftColourData[3];
         float rightColourData[3];
 
@@ -156,7 +156,7 @@ int main(void)
         serial_print("Right colour data: %f, %f, %f\r\n", rightColourData[0], rightColourData[1], rightColourData[2]);
         serial_print("\r\n");
         HAL_Delay(300);
-		*/
+        */
         call_lf_sequence();
         break;
       }

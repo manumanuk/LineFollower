@@ -8,26 +8,25 @@
 #define MOTOR_UNSTALL_SPEED 850U
 #define MOTOR_BALANCE_BIAS 0U
 
-#define LF_MOTOR_CHANNEL TIM_CHANNEL_1
-#define LB_MOTOR_CHANNEL TIM_CHANNEL_3
+#define LF_MOTOR_CHANNEL TIM_CHANNEL_3
+#define LB_MOTOR_CHANNEL TIM_CHANNEL_1
 
-#define RF_MOTOR_CHANNEL TIM_CHANNEL_1
-#define RB_MOTOR_CHANNEL TIM_CHANNEL_2
+#define RF_MOTOR_CHANNEL TIM_CHANNEL_2
+#define RB_MOTOR_CHANNEL TIM_CHANNEL_1
 
-#define BANG_BANG_OUTER_MOTOR_SPEED 500U
-#define BANG_BANG_INNER_MOTOR_SPEED 300U
+#define BANG_BANG_OUTER_MOTOR_SPEED 400
+#define BANG_BANG_INNER_MOTOR_SPEED 200
 #define BANG_BANG_POS_THRESH 100U
 
 #define GRIPPER_GRIP_PWM 4U
 #define GRIPPER_RELEASE_PWM 11U
 #define GRIPPER_DELAY 1200U
 
-#define PID_MAX_SPEED 600U
-#define PID_BASE_SPEED 400U
-#define PID_MIN_SPEED 0U
+#define PID_BASE_SPEED 350
+#define PID_MIN_SPEED -350
 #define PID_DESIRED_POS 100U
-float PID_K_P = 0.35;
-float PID_K_D = 1.0;
+float PID_K_P = 3.5;
+float PID_K_D = 6.0;
 float PID_K_I = 0.0;
 
 extern UART_HandleTypeDef huart2;
@@ -107,12 +106,15 @@ void halt_gripper() {
 
 
 static void ctrl_bang_bang_get_motor_cmd(float position, int32_t *lMotorPwm, int32_t *rMotorPwm) {
-    if (position > BANG_BANG_POS_THRESH) {
+    if (position > 125) {
         *lMotorPwm = BANG_BANG_OUTER_MOTOR_SPEED;
         *rMotorPwm = BANG_BANG_INNER_MOTOR_SPEED;
-    } else if (position <= BANG_BANG_POS_THRESH) {
+    } else if (position < 75) {
         *lMotorPwm = BANG_BANG_INNER_MOTOR_SPEED;
         *rMotorPwm = BANG_BANG_OUTER_MOTOR_SPEED;
+    } else {
+        *lMotorPwm = 300;
+        *rMotorPwm = 300;
     }
 }
 
@@ -121,8 +123,8 @@ static void ctrl_pid_get_motor_cmd(float position, int32_t *lMotorPwm, int32_t *
     static float integralPrior = 0.0;
     // When robot is too much to the left, error will be negative. activate the left motor
     float error = PID_DESIRED_POS-position;
-    float integral = integralPrior + error*PID_K_I;
-    float deltaV = error*PID_K_P + (error-errorPrior)*PID_K_D + integral;
+    float integral = integralPrior + error;
+    float deltaV = error*PID_K_P + (error-errorPrior)*PID_K_D + integral*PID_K_I;
     integralPrior = integral;
     errorPrior = error;
     
@@ -156,6 +158,7 @@ void call_lf_sequence() {
     int32_t lMotorPwm = 0;
     int32_t rMotorPwm = 0;
     float position = get_position_from_readings(rgbLeft, rgbRight);
+    globalPosition = position;
     ctrl_pid_get_motor_cmd(position, &lMotorPwm, &rMotorPwm);
     motor_command(lMotorPwm, rMotorPwm);
 }
