@@ -118,8 +118,8 @@ int main(void)
   MX_I2C3_Init();
   /* USER CODE BEGIN 2 */
   // Colour sensor initialization
-  // tcs3472_init(LEFT_COLOUR_SENSOR);
-  // tcs3472_init(RIGHT_COLOUR_SENSOR);
+  tcs3472_init(LEFT_COLOUR_SENSOR);
+  tcs3472_init(RIGHT_COLOUR_SENSOR);
   
   // Motor initialization
   init_motors();
@@ -145,6 +145,18 @@ int main(void)
         break;
       }
       case LFF: {
+        /*
+        float leftColourData[4];
+        float rightColourData[4];
+
+        tcs3472_get_colour_data(LEFT_COLOUR_SENSOR, &leftColourData);
+        tcs3472_get_colour_data(RIGHT_COLOUR_SENSOR, &rightColourData);
+
+        serial_print("Left colour data: %f, %f, %f, %f\r\n", leftColourData[0], leftColourData[1], leftColourData[2], leftColourData[3]);
+        serial_print("Right colour data: %f, %f, %f, %f\r\n", rightColourData[0], rightColourData[1], rightColourData[2], rightColourData[3]);
+        serial_print("\r\n");
+        HAL_Delay(300);
+        */
         call_lf_sequence();
         break;
       }

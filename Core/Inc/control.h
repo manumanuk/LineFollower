@@ -4,8 +4,6 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-void ctrl_pid_get_motor_cmd(double position, int32_t *lMotorPwm, int32_t *rMotorPwm);
-void ctrl_bang_bang_get_motor_cmd(double position, int32_t *lMotorPwm, int32_t *rMotorPwm);
 void motor_command(int32_t lMotorPwm, int32_t rMotorPwm);
 void init_motors();
 void gripper_grip();

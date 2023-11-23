@@ -41,6 +41,14 @@
 
 #define TCS_TOTAL_DATA_BYTES 8U
 
+#define LEFT_RED_R 0.59
+
+#define LEFT_BROWN_R 0.32
+
+#define RIGHT_RED_R 0.65
+
+#define RIGHT_BROWN_R 0.42
+
 typedef enum {
     LEFT_COLOUR_SENSOR,
     RIGHT_COLOUR_SENSOR
