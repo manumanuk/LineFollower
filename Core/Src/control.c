@@ -16,7 +16,6 @@
 
 #define BANG_BANG_OUTER_MOTOR_SPEED 500U
 #define BANG_BANG_INNER_MOTOR_SPEED 300U
-#define BANG_BANG_CENTER_SPEED 400U
 #define BANG_BANG_POS_THRESH 100U
 
 #define GRIPPER_GRIP_PWM 4U
@@ -24,12 +23,12 @@
 #define GRIPPER_DELAY 1200U
 
 #define PID_MAX_SPEED 600U
-#define PID_BASE_SPEED 425U
-#define PID_DELTA_V_RANGE (MOTOR_MAX_PWM-PID_BASE_SPEED)
+#define PID_BASE_SPEED 400U
+#define PID_MIN_SPEED 0U
 #define PID_DESIRED_POS 100U
-float PID_K_P = 1.0;
-float PID_K_D = 3.0;
-float PID_K_I = 0;
+float PID_K_P = 0.35;
+float PID_K_D = 1.0;
+float PID_K_I = 0.0;
 
 extern UART_HandleTypeDef huart2;
 extern TIM_HandleTypeDef htim3;
@@ -122,20 +121,22 @@ static void ctrl_pid_get_motor_cmd(float position, int32_t *lMotorPwm, int32_t *
     static float integralPrior = 0.0;
     // When robot is too much to the left, error will be negative. activate the left motor
     float error = PID_DESIRED_POS-position;
-    float integral = integralPrior + error;
-    float deltaV = error*PID_K_P + (error-errorPrior)*PID_K_D + (integral)*PID_K_I;
+    float integral = integralPrior + error*PID_K_I;
+    float deltaV = error*PID_K_P + (error-errorPrior)*PID_K_D + integral;
     integralPrior = integral;
     errorPrior = error;
     
 
     if (deltaV > 0) {
-        *lMotorPwm = PID_BASE_SPEED;
-        uint16_t controlVal = ((uint16_t)deltaV) < PID_DELTA_V_RANGE ? ((uint16_t)deltaV) : PID_DELTA_V_RANGE;
-        *rMotorPwm = PID_BASE_SPEED + controlVal;
-    } else {
-        uint16_t controlVal = ((uint16_t)(-deltaV)) < PID_DELTA_V_RANGE ? ((uint16_t)(-deltaV)) : PID_DELTA_V_RANGE;
-        *lMotorPwm = PID_BASE_SPEED + controlVal;
+        // Slow down left motor
         *rMotorPwm = PID_BASE_SPEED;
+        int32_t controlValue = PID_BASE_SPEED-deltaV;
+        *lMotorPwm = max(PID_MIN_SPEED, controlValue);
+    } else {
+        // Slow down right motor
+        *lMotorPwm = PID_BASE_SPEED;
+        int32_t controlValue = PID_BASE_SPEED+deltaV;
+        *rMotorPwm = max(PID_MIN_SPEED, controlValue);
     }
 }
 
@@ -155,7 +156,7 @@ void call_lf_sequence() {
     int32_t lMotorPwm = 0;
     int32_t rMotorPwm = 0;
     float position = get_position_from_readings(rgbLeft, rgbRight);
-    ctrl_bang_bang_get_motor_cmd(position, &lMotorPwm, &rMotorPwm);
+    ctrl_pid_get_motor_cmd(position, &lMotorPwm, &rMotorPwm);
     motor_command(lMotorPwm, rMotorPwm);
 }
 

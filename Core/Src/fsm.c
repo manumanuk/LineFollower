@@ -13,13 +13,9 @@ bool transition_state(volatile robot_state_e *state, robot_event_e event) {
     switch (*state) {
         case IDLE: {
             switch(event) {
-                case SWLONG:
-                    HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_SET);
+                case SW:
                     motor_command(0, 0);
                     *state = LFF;
-                    return true;
-                case SW:
-                    *state = CALIB;
                     return true;
                 default:
                     return false;

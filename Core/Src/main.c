@@ -145,18 +145,18 @@ int main(void)
         break;
       }
       case LFF: {
-        /*
-        float leftColourData[4];
-        float rightColourData[4];
+    	/*
+        float leftColourData[3];
+        float rightColourData[3];
 
         tcs3472_get_colour_data(LEFT_COLOUR_SENSOR, &leftColourData);
         tcs3472_get_colour_data(RIGHT_COLOUR_SENSOR, &rightColourData);
 
-        serial_print("Left colour data: %f, %f, %f, %f\r\n", leftColourData[0], leftColourData[1], leftColourData[2], leftColourData[3]);
-        serial_print("Right colour data: %f, %f, %f, %f\r\n", rightColourData[0], rightColourData[1], rightColourData[2], rightColourData[3]);
+        serial_print("Left colour data: %f, %f, %f\r\n", leftColourData[0], leftColourData[1], leftColourData[2]);
+        serial_print("Right colour data: %f, %f, %f\r\n", rightColourData[0], rightColourData[1], rightColourData[2]);
         serial_print("\r\n");
         HAL_Delay(300);
-        */
+		*/
         call_lf_sequence();
         break;
       }
@@ -626,6 +626,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
 void Error_Handler(void)
 {
   /* USER CODE BEGIN Error_Handler_Debug */
+  HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_SET);
   /* User can add his own implementation to report the HAL error return state */
   __disable_irq();
   while (1)

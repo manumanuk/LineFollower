@@ -45,6 +45,7 @@ bool tcs3472_get_colour_data(tcs3472_instance_e instance, float *colourData) {
   }
 
   uint16_t rgbc[4];
+
   for (uint8_t i=0; i<4; i++) {
     rgbc[i] = ((uint16_t)rData[1+i*2]) | (((uint16_t)rData[1+i*2+1]) << 8U);
   }
