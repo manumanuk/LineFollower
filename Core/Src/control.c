@@ -8,25 +8,25 @@
 #define MOTOR_UNSTALL_SPEED 850U
 #define MOTOR_BALANCE_BIAS 0U
 
-#define LF_MOTOR_CHANNEL TIM_CHANNEL_3
-#define LB_MOTOR_CHANNEL TIM_CHANNEL_1
+#define LF_MOTOR_CHANNEL TIM_CHANNEL_1
+#define LB_MOTOR_CHANNEL TIM_CHANNEL_3
 
-#define RF_MOTOR_CHANNEL TIM_CHANNEL_2
-#define RB_MOTOR_CHANNEL TIM_CHANNEL_1
+#define RF_MOTOR_CHANNEL TIM_CHANNEL_1
+#define RB_MOTOR_CHANNEL TIM_CHANNEL_2
 
-#define BANG_BANG_OUTER_MOTOR_SPEED 400
-#define BANG_BANG_INNER_MOTOR_SPEED 200
+#define BANG_BANG_OUTER_MOTOR_SPEED 800
+#define BANG_BANG_INNER_MOTOR_SPEED 400
 #define BANG_BANG_POS_THRESH 100U
 
 #define GRIPPER_GRIP_PWM 4U
 #define GRIPPER_RELEASE_PWM 11U
 #define GRIPPER_DELAY 1200U
 
-#define PID_BASE_SPEED 350
-#define PID_MIN_SPEED -350
+#define PID_BASE_SPEED 1000
+#define PID_MIN_SPEED 200
 #define PID_DESIRED_POS 100U
-float PID_K_P = 3.5;
-float PID_K_D = 6.0;
+float PID_K_P = 15.0;
+float PID_K_D = 0.0;
 float PID_K_I = 0.0;
 
 extern UART_HandleTypeDef huart2;
@@ -123,8 +123,8 @@ static void ctrl_pid_get_motor_cmd(float position, int32_t *lMotorPwm, int32_t *
     static float integralPrior = 0.0;
     // When robot is too much to the left, error will be negative. activate the left motor
     float error = PID_DESIRED_POS-position;
-    float integral = integralPrior + error;
-    float deltaV = error*PID_K_P + (error-errorPrior)*PID_K_D + integral*PID_K_I;
+    float integral = integralPrior + error*PID_K_I;
+    float deltaV = error*PID_K_P + (error-errorPrior)*PID_K_D + integral;
     integralPrior = integral;
     errorPrior = error;
     
