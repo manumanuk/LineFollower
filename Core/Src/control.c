@@ -23,8 +23,8 @@ extern volatile robot_state_e robotState;
 
 #define GRIPPER_GRIP_PWM 4U
 #define GRIPPER_RELEASE_PWM 11U
-#define GRIPPER_HALF_GRIP_DELAY 400U
-#define GRIPPER_FULL_GRIP_DELAY 600U
+#define GRIPPER_FULL_GRIP_DELAY 1200U
+#define GRIPPER_RELEASE_DELAY 1200U
 
 #define PID_BASE_SPEED 1000
 #define PID_MIN_SPEED 200
@@ -37,8 +37,6 @@ extern UART_HandleTypeDef huart2;
 extern TIM_HandleTypeDef htim3;
 extern TIM_HandleTypeDef htim4;
 extern TIM_HandleTypeDef htim2;
-
-float globalPosition = 0.0;
 
 typedef struct {
     int32_t lMotorPwm;
@@ -164,9 +162,11 @@ bool check_blue(float *lRGB, float *rRGB) {
 
 void call_lf_sequence() {
     static bool gripperGripped = false;
+    /*
     static bool halfCloseGripper = false;
     static bool firstInvocation = true;
     static uint32_t startTime = 0;
+    */
 
 
     float rgbLeft[3];
@@ -177,10 +177,10 @@ void call_lf_sequence() {
     int32_t lMotorPwm = 0;
     int32_t rMotorPwm = 0;
     float position = get_position_from_readings(rgbLeft, rgbRight);
-    globalPosition = position;
     ctrl_pid_get_motor_cmd(position, &lMotorPwm, &rMotorPwm);
     motor_command(lMotorPwm, rMotorPwm);
 
+    /*
     if (!halfCloseGripper && !firstInvocation && HAL_GetTick()-startTime > GRIPPER_HALF_GRIP_DELAY) {
         HAL_TIM_PWM_Stop(&htim2, TIM_CHANNEL_1);
         halfCloseGripper = true;
@@ -193,6 +193,7 @@ void call_lf_sequence() {
         htim2.Instance->CCR1 = GRIPPER_RELEASE_PWM;
 	    HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
     }
+    */
 
     if (!gripperGripped && check_blue(rgbLeft, rgbRight)) {
         motor_command(0, 0);
@@ -202,11 +203,20 @@ void call_lf_sequence() {
 }
 
 void call_grpg_sequence() {
+    // Grip
+    motor_command(-500, -500);
+    HAL_Delay(70);
+    motor_command(0, 0);
     gripper_grip(GRIPPER_FULL_GRIP_DELAY);
-    motor_command(-300, -300);
-    HAL_Delay(500);
-    motor_command(600, -600);
+
+    // Go backwards
+    // motor_command(-300, -300);
+    // HAL_Delay(500);
+
+    // Spin
+    motor_command(-1000, 1000);
     HAL_Delay(350);
+    // Until you hit red on left sensor
     while (1) {
         float rgbLeft[3];
         tcs3472_get_colour_data(LEFT_COLOUR_SENSOR, rgbLeft);
@@ -214,7 +224,39 @@ void call_grpg_sequence() {
             break;
         }
     }
+    
+    // Spin back a little bit
+    motor_command(1000, -1000);
+    HAL_Delay(75);
+
+    // Curve turn right
+    motor_command(1000, 250);
+    // Until you hit green on any sensor
+    while (1) {
+        float rgbLeft[3];
+        float rgbRight[3];
+        tcs3472_get_colour_data(LEFT_COLOUR_SENSOR, rgbLeft);
+        tcs3472_get_colour_data(RIGHT_COLOUR_SENSOR, rgbRight);
+        if ((rgbLeft[1] > 0.37 && rgbLeft[0] < 0.3) || rgbRight[1] > 0.38 && rgbRight[0] < 0.3) {
+            break;
+        }
+    }
+    motor_command(-1000, -250);
+    HAL_Delay(150);
+
+    // Release
     motor_command(0, 0);
+    gripper_release(GRIPPER_RELEASE_DELAY);
+
+    // Curve turn backwards same way
+    motor_command(-1000, -300);
+    while (1) {
+        float rgbLeft[3];
+        tcs3472_get_colour_data(LEFT_COLOUR_SENSOR, rgbLeft);
+        if (rgbLeft[0] > (LEFT_RED_R-LEFT_BROWN_R)/2.0+LEFT_BROWN_R) {
+            break;
+        }
+    }
 
     transition_state(&robotState, GRPG_CMPL);
 }

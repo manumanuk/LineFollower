@@ -80,6 +80,14 @@ static void MX_I2C3_Init(void);
 /* USER CODE BEGIN 0 */
 
 /* USER CODE END 0 */
+static void wait_for_button_press() {
+    while (1) {
+        while(HAL_GPIO_ReadPin(SW_PORT, SW_PIN));
+        HAL_Delay(10);
+        if (HAL_GPIO_ReadPin(SW_PORT, SW_PIN) == 0)
+            return;
+    }
+}
 
 /**
   * @brief  The application entry point.
@@ -145,7 +153,7 @@ int main(void)
         break;
       }
       case LFF: {
-        /*
+    	/*
         float leftColourData[3];
         float rightColourData[3];
 
@@ -608,7 +616,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
         swLastOnTime = HAL_GetTick();
       else if (currTime-swLastOnTime > SWLONG_TIME)
         transition_state(&robotState, SWLONG);
-      else
+      else if (currTime-swLastOnTime > 100)
         transition_state(&robotState, SW);
 
       swPinState = newState;

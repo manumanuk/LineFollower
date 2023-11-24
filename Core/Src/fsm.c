@@ -21,20 +21,12 @@ bool transition_state(volatile robot_state_e *state, robot_event_e event) {
                     return false;
             }
         }
-        case CALIB: {
-            switch(event) {
-                case CALIB_CMPL:
-                    *state = IDLE;
-                    return true;
-                default:
-                    return false;
-            }
-        }
         case LFF: {
             switch(event) {
                 case SW:
                     *state = IDLE;
                     motor_command(0, 0);
+                    halt_gripper();
                     return true;
                 case BLUE_EVT:
                     motor_command(0, 0);
