@@ -230,7 +230,7 @@ void call_grpg_sequence() {
     HAL_Delay(75);
 
     // Curve turn right
-    motor_command(1000, 250);
+    motor_command(1000, 225);
     // Until you hit green on any sensor
     while (1) {
         float rgbLeft[3];
@@ -249,7 +249,7 @@ void call_grpg_sequence() {
     gripper_release(GRIPPER_RELEASE_DELAY);
 
     // Curve turn backwards same way
-    motor_command(-1000, -300);
+    motor_command(-1000, -250);
     while (1) {
         float rgbLeft[3];
         tcs3472_get_colour_data(LEFT_COLOUR_SENSOR, rgbLeft);
