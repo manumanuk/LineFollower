@@ -1,7 +1,10 @@
 #include "control.h"
 #include "tcs3472.h"
 #include "stm32f4xx_hal.h"
+#include "fsm.h"
 #include "common.h"
+
+extern volatile robot_state_e robotState;
 
 #define MOTOR_MAX_PWM 1000U
 #define MOTOR_UNSTALL_TIME 50U
@@ -20,12 +23,13 @@
 
 #define GRIPPER_GRIP_PWM 4U
 #define GRIPPER_RELEASE_PWM 11U
-#define GRIPPER_DELAY 1200U
+#define GRIPPER_HALF_GRIP_DELAY 400U
+#define GRIPPER_FULL_GRIP_DELAY 600U
 
 #define PID_BASE_SPEED 1000
 #define PID_MIN_SPEED 200
 #define PID_DESIRED_POS 100U
-float PID_K_P = 15.0;
+float PID_K_P = 30.0;
 float PID_K_D = 0.0;
 float PID_K_I = 0.0;
 
@@ -84,19 +88,19 @@ void motor_command(int32_t lMotorPwm, int32_t rMotorPwm) {
     return;
 }
 
-void gripper_grip() {
+void gripper_grip(uint32_t delay) {
 	htim2.Instance->CCR1 = GRIPPER_RELEASE_PWM;
 
 	HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
-	HAL_Delay(GRIPPER_DELAY);
+	HAL_Delay(delay);
 	HAL_TIM_PWM_Stop(&htim2, TIM_CHANNEL_1);
 }
 
-void gripper_release() {
+void gripper_release(uint32_t delay) {
 	htim2.Instance->CCR1 = GRIPPER_GRIP_PWM;
 
 	HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
-	HAL_Delay(GRIPPER_DELAY);
+	HAL_Delay(delay);
 	HAL_TIM_PWM_Stop(&htim2, TIM_CHANNEL_1);
 }
 
@@ -149,20 +153,68 @@ static float get_position_from_readings(float *lRGB, float *rRGB) {
     return 100.0 + 100.0*((rRed-RIGHT_BROWN_R)/(RIGHT_RED_R-RIGHT_BROWN_R) - (lRed-LEFT_BROWN_R)/(LEFT_RED_R-LEFT_BROWN_R));
 }
 
+bool check_blue(float *lRGB, float *rRGB) {
+    float lBlue = lRGB[2];
+    float rBlue = rRGB[2];
+    if (lBlue > LEFT_BLUE_B || rBlue > RIGHT_BLUE_B) {
+        return true;
+    }
+    return false;
+}
+
 void call_lf_sequence() {
+    static bool gripperGripped = false;
+    static bool halfCloseGripper = false;
+    static bool firstInvocation = true;
+    static uint32_t startTime = 0;
+
+
     float rgbLeft[3];
     float rgbRight[3];
     tcs3472_get_colour_data(LEFT_COLOUR_SENSOR, rgbLeft);
     tcs3472_get_colour_data(RIGHT_COLOUR_SENSOR, rgbRight);
-
+    
     int32_t lMotorPwm = 0;
     int32_t rMotorPwm = 0;
     float position = get_position_from_readings(rgbLeft, rgbRight);
     globalPosition = position;
     ctrl_pid_get_motor_cmd(position, &lMotorPwm, &rMotorPwm);
     motor_command(lMotorPwm, rMotorPwm);
+
+    if (!halfCloseGripper && !firstInvocation && HAL_GetTick()-startTime > GRIPPER_HALF_GRIP_DELAY) {
+        HAL_TIM_PWM_Stop(&htim2, TIM_CHANNEL_1);
+        halfCloseGripper = true;
+    }
+
+    if (firstInvocation) {
+        startTime = HAL_GetTick();
+        firstInvocation = false;
+
+        htim2.Instance->CCR1 = GRIPPER_RELEASE_PWM;
+	    HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
+    }
+
+    if (!gripperGripped && check_blue(rgbLeft, rgbRight)) {
+        motor_command(0, 0);
+        gripperGripped = true;
+        transition_state(&robotState, BLUE_EVT);
+    }
 }
 
 void call_grpg_sequence() {
-    gripper_grip();
+    gripper_grip(GRIPPER_FULL_GRIP_DELAY);
+    motor_command(-300, -300);
+    HAL_Delay(500);
+    motor_command(600, -600);
+    HAL_Delay(350);
+    while (1) {
+        float rgbLeft[3];
+        tcs3472_get_colour_data(LEFT_COLOUR_SENSOR, rgbLeft);
+        if (rgbLeft[0] > (LEFT_RED_R-LEFT_BROWN_R)/2.0+LEFT_BROWN_R) {
+            break;
+        }
+    }
+    motor_command(0, 0);
+
+    transition_state(&robotState, GRPG_CMPL);
 }

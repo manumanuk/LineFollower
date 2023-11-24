@@ -53,6 +53,7 @@ bool transition_state(volatile robot_state_e *state, robot_event_e event) {
                 case GRPG_CMPL:
                     motor_command(0, 0);
                     halt_gripper();
+                    *state = LFF;
                     return true;
                 default:
                     return false;

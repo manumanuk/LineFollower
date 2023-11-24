@@ -42,11 +42,11 @@
 #define TCS_TOTAL_DATA_BYTES 8U
 
 #define LEFT_RED_R 0.55
-
+#define LEFT_BLUE_B 0.40
 #define LEFT_BROWN_R 0.33
 
 #define RIGHT_RED_R 0.56
-
+#define RIGHT_BLUE_B 0.35
 #define RIGHT_BROWN_R 0.38
 
 typedef enum {
